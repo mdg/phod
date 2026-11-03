@@ -24,53 +24,40 @@ defmodule Phod.Tool.GitGrep do
     """
 
   @impl Tool.B
-  def run(root, input) do
-    case Map.get(input, "pattern") do
-      pattern when is_binary(pattern) and pattern != "" ->
-        search(root, pattern, Map.get(input, "path", "."))
-
-      other ->
-        {:error, "pattern must be a non-empty string, got: #{inspect(other)}"}
-    end
+  def tool_fields() do
+    [:path, :pattern]
   end
 
-  defp search(root, pattern, path) do
-    case Tool.Lib.resolve_path(root, path) do
-      {:ok, absolute} ->
-        subdir = Tool.Lib.relative_path(root, absolute)
+  @impl Tool.B
+  def run(%Tool.Input{pattern: pattern} = input) do
+    args = [
+      "--no-messages",
+      "--binary-files=without-match",
+      "--exclude-dir=.git",
+      "--exclude=.git",
+      "--directories=recurse",
+      "--with-filename",
+      "--line-number",
+      "--extended-regexp",
+      "--",
+      pattern,
+      input.path
+    ]
 
-        args = [
-          "--no-messages",
-          "--binary-files=without-match",
-          "--exclude-dir=.git",
-          "--exclude=.git",
-          "--directories=recurse",
-          "--with-filename",
-          "--line-number",
-          "--extended-regexp",
-          "--",
-          pattern,
-          subdir
-        ]
+    {output, exit_code} = System.cmd("grep", args, cd: input.root, stderr_to_stdout: true)
 
-        {output, exit_code} = System.cmd("grep", args, cd: root, stderr_to_stdout: true)
+    result =
+      case exit_code do
+        0 -> {:ok, output}
+        # no matches: treat as an ok result with no output
+        1 -> {:ok, ""}
+        _ -> {:error, output}
+      end
 
-        result =
-          case exit_code do
-            0 -> {:ok, output}
-            # no matches: treat as an ok result with no output
-            1 -> {:ok, ""}
-            _ -> {:error, output}
-          end
-
-        result
-        |> map_ok(&parse_output/1)
-        |> map_err(&normalize_grep_error/1)
-        |> on_err(fn reason -> Logger.warning("git_grep failed: " <> reason) end)
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    result
+    |> map_ok(&parse_output/1)
+    |> map_err(&normalize_grep_error/1)
+    |> on_err(fn reason -> Logger.warning("git_grep failed: " <> reason) end)
   end
 
   # {"path:line:text", ...} -> %{matches: ..., truncated?}

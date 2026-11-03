@@ -1,6 +1,8 @@
 defmodule Phod.Tool.ReadFile do
   @moduledoc false
 
+  import Rexult
+
   alias Phod.Tool
 
   @behaviour Tool.B
@@ -19,29 +21,27 @@ defmodule Phod.Tool.ReadFile do
     """
 
   @impl Tool.B
-  def run(root, input) do
-    path = Map.get(input, "path")
+  def tool_fields(), do: [:path]
 
-    case Tool.Lib.resolve_path(root, path) do
-      {:ok, absolute} ->
-        case File.read(absolute) do
-          {:ok, content} ->
-            {:ok,
-             %{
-               path: Tool.Lib.relative_path(root, absolute),
-               content: format_content(content)
-             }}
+  @impl Tool.B
+  def run(%Tool.Input{path: path} = input) do
+    File.read(input.full_path)
+    |> map_ok(fn content ->
+      %{
+        path: path,
+        content: format_content(content),
+      }
+    end)
+    |> map_err(fn
+      :enoent ->
+        "#{inspect(path)} does not exist"
 
-          {:error, :eisdir} ->
-            {:error, "#{inspect(path)} is a directory; use list_files on it"}
+      :eisdir ->
+        "#{inspect(path)} is a directory, use list_files"
 
-          {:error, reason} ->
-            {:error, "could not read #{inspect(path)}: #{Tool.Lib.format_error(reason)}"}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+      reason ->
+        "could not read #{inspect(path)}: " <> Tool.Lib.format_error(reason)
+    end)
   end
 
   defp format_content(content) do

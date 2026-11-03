@@ -1,6 +1,7 @@
 defmodule Phod.Tool.ReadFileTest do
   use ExUnit.Case, async: true
 
+  alias Phod.Tool
   import Phod.Tool.TestHelpers
 
   setup {Phod.Tool.TestHelpers, :setup_worktree}
@@ -9,20 +10,20 @@ defmodule Phod.Tool.ReadFileTest do
     write(root, "README.md", "hello\nworld\n")
 
     assert {:ok, %{path: "README.md", content: content}} =
-             Phod.Tool.run(:read_file, root, %{"path" => "README.md"})
+             Tool.run(:read_file, root, %{"path" => "README.md"})
 
     assert content == "1: hello\n2: world"
   end
 
   test "errors on missing files", %{root: root} do
-    assert {:error, msg} = Phod.Tool.run(:read_file, root, %{"path" => "nope.txt"})
+    assert {:error, msg} = Tool.run(:read_file, root, %{"path" => "nope.txt"})
     assert msg =~ "no such file or directory"
   end
 
   test "errors on directories with a helpful hint", %{root: root} do
     write(root, "src/index.ex", "x\n")
 
-    assert {:error, msg} = Phod.Tool.run(:read_file, root, %{"path" => "src"})
+    assert {:error, msg} = Tool.run(:read_file, root, %{"path" => "src"})
     assert msg =~ "use list_files"
   end
 end

@@ -1,6 +1,8 @@
 defmodule Phod.Tool.ListFiles do
   @moduledoc false
 
+  import Rexult
+
   alias Phod.Tool
 
   @behaviour Tool.B
@@ -18,29 +20,29 @@ defmodule Phod.Tool.ListFiles do
     """
 
   @impl Tool.B
-  def run(root, input) do
-    path = Map.get(input, "path", ".")
+  def tool_fields() do
+    [:path]
+  end
 
-    case Tool.Lib.resolve_path(root, path) do
-      {:ok, absolute} ->
-        case File.ls(absolute) do
-          {:ok, names} ->
-            entries =
-              for name <- Enum.sort(names) do
-                type =
-                  if File.dir?(Path.join(absolute, name)), do: "dir", else: "file"
+  @impl Tool.B
+  def run(%Tool.Input{} = input) do
+    File.ls(input.full_path)
+    |> map_ok(fn names ->
+      entries =
+        Enum.sort(names)
+        |> Enum.map(fn name ->
+          full_name = Path.join(input.full_path, name)
+          type = if File.dir?(full_name), do: "dir", else: "file"
+          %{name: name, type: type}
+        end)
 
-                %{name: name, type: type}
-              end
-
-            {:ok, %{path: Tool.Lib.relative_path(root, absolute), entries: entries}}
-
-          {:error, reason} ->
-            {:error, "could not list #{inspect(path)}: #{Tool.Lib.format_error(reason)}"}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+      %{
+        path: input.path,
+        entries: entries,
+      }
+    end)
+    |> map_err(fn reason ->
+      "could not list #{inspect(input.path)}: #{Tool.Lib.format_error(reason)}"
+    end)
   end
 end

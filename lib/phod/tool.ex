@@ -4,6 +4,9 @@ defmodule Phod.Tool do
   implementations and exposes LLM-facing tool specs.
   """
 
+  import Rexult
+  alias __MODULE__.Input
+
   @tools [
     __MODULE__.ApplyDiff,
     __MODULE__.GitGrep,
@@ -23,11 +26,17 @@ defmodule Phod.Tool do
     end
   end
 
-  @spec run(atom(), String.t(), __MODULE__.B.input()) :: __MODULE__.B.result()
+  @spec run(atom(), String.t(), map()) :: __MODULE__.B.result()
   def run(name, root, input) do
     case Map.fetch(@names, name) do
-      {:ok, tool} -> tool.run(root, input)
-      :error -> {:error, "unknown tool: #{inspect(name)}"}
+      {:ok, tool} ->
+        input
+        |> Input.from_map(root)
+        |> Input.validate_fields(tool.tool_fields())
+        |> ok_and_then(&tool.run/1)
+
+      :error ->
+        {:error, "unknown tool: #{inspect(name)}"}
     end
   end
 end

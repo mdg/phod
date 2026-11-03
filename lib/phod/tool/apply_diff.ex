@@ -25,23 +25,15 @@ defmodule Phod.Tool.ApplyDiff do
     """
 
   @impl Tool.B
-  def run(root, input) do
-    path = Map.get(input, "path")
-    diff = Map.get(input, "diff")
-
-    with {:ok, absolute} <- Tool.Lib.resolve_path(root, path, allow_new?: true),
-         {:ok, diff} <- validate_diff(diff),
-         {:ok, lines, trailing_newline?} <- read_lines(absolute),
-         {:ok, hunks} <- parse_hunks(diff) do
-      apply_hunks(absolute, path, lines, trailing_newline?, hunks)
-    end
+  def tool_fields() do
+    [:allow_new_path, :path, :diff]
   end
 
-  defp validate_diff(diff) do
-    if is_binary(diff) and String.trim(diff) != "" do
-      {:ok, diff}
-    else
-      {:error, "diff must be a non-empty unified diff string, got: #{inspect(diff)}"}
+  @impl Tool.B
+  def run(%Tool.Input{full_path: full_path, path: path, diff: diff}) do
+    with {:ok, lines, trailing_newline?} <- read_lines(full_path),
+         {:ok, hunks} <- parse_hunks(diff) do
+      apply_hunks(full_path, path, lines, trailing_newline?, hunks)
     end
   end
 

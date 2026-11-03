@@ -12,54 +12,6 @@ defmodule Phod.Tool.Lib do
   """
 
   @doc """
-  Resolves `path` (relative to the worktree `root`) into a checked filesystem
-  path, guaranteed to stay within `root`.
-
-  `Path.safe_relative/2` is applied first: it collapses `..` and rejects
-  absolute paths and traversal pointing outside `root`. The safe path is then
-  walked component by component, resolving symlinks, so each existing
-  component is verified to remain inside the worktree; non-existent
-  components (e.g. files about to be created) are not yet resolvable but
-  their container is, so they can never pre-emptively escape through a
-  symlink.
-
-  With `allow_new?: true` (used by `apply_diff` when creating files) paths in
-  not-yet-existing directories are accepted; the default requires the path or
-  its parent to exist.
-  """
-  import Rexult
-
-  @spec resolve_path(String.t(), term(), keyword()) :: {:ok, String.t()} | {:error, String.t()}
-  def resolve_path(root, path, opts \\ [])
-
-  def resolve_path(_root, path, _opts) when not is_binary(path) do
-    {:error, "path must be a string, got: #{inspect(path)}"}
-  end
-
-  def resolve_path(_root, "", _opts) do
-    {:error, "path must not be empty"}
-  end
-
-  def resolve_path(root, path, opts) do
-    allow_new? = Keyword.get(opts, :allow_new?, false)
-
-    if not File.dir?(root) do
-      {:error, "invalid worktree root"}
-    else
-      Path.safe_relative(path, root)
-      |> rexult()
-      |> map_err(fn _ -> "invalid path" end)
-      |> ok_and_then(fn safe_path ->
-        if allow_new? or File.exists?(Path.join(root, safe_path)) do
-          {:ok, safe_path}
-        else
-          {:error, "file does not exist"}
-        end
-      end)
-    end
-  end
-
-  @doc """
   Formats a POSIX error reason into a human-readable message.
   """
   @spec format_error(atom() | String.t()) :: String.t()

@@ -14,10 +14,12 @@ defmodule Phod.Tool.B do
   under `~/phod/repo/` are never touched by tools.
   """
 
-  @type input :: %{optional(String.t()) => term()}
+  alias Phod.Tool
+
   @type result :: {:ok, term()} | {:error, String.t()}
 
   @callback name() :: atom()
   @callback description() :: String.t()
-  @callback run(root :: String.t(), input :: input()) :: result()
+  @callback tool_fields() :: [atom()]
+  @callback run(input :: Tool.Input.t()) :: result()
 end

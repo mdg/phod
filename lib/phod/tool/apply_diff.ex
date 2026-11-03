@@ -1,20 +1,20 @@
-defmodule Phod.Agent.Tool.ApplyDiff do
+defmodule Phod.Tool.ApplyDiff do
   @moduledoc false
+
+  alias Phod.Tool
 
   # Applies a unified diff to a single file, atomically: all hunks are matched
   # against the in-memory file content first, and nothing is written unless
   # every hunk applies successfully.
 
-  @behaviour Phod.Agent.Tool
-
-  alias Phod.Agent.Tool
+  @behaviour Tool.B
 
   @hunk_header ~r/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/
 
-  @impl Tool
-  def name, do: "apply_diff"
+  @impl Tool.B
+  def name, do: :apply_diff
 
-  @impl Tool
+  @impl Tool.B
   def description,
     do: """
     Apply a unified diff to one file in the worktree. Provide the diff in \
@@ -24,12 +24,12 @@ defmodule Phod.Agent.Tool.ApplyDiff do
     diff against /dev/null. After applying, verify the result with read_file.\
     """
 
-  @impl Tool
+  @impl Tool.B
   def run(root, input) do
     path = Map.get(input, "path")
     diff = Map.get(input, "diff")
 
-    with {:ok, absolute} <- Tool.resolve(root, path, allow_new?: true),
+    with {:ok, absolute} <- Tool.Lib.resolve(root, path, allow_new?: true),
          {:ok, diff} <- validate_diff(diff),
          {:ok, lines, trailing_newline?} <- read_lines(absolute),
          {:ok, hunks} <- parse_hunks(diff) do
@@ -47,9 +47,12 @@ defmodule Phod.Agent.Tool.ApplyDiff do
 
   defp read_lines(absolute) do
     if File.exists?(absolute) do
-      case Tool.read_lines(absolute) do
-        {:ok, lines, trailing?} -> {:ok, lines, trailing?}
-        {:error, reason} -> {:error, "could not read file: " <> Tool.format_error(reason)}
+      case Tool.Lib.read_lines(absolute) do
+        {:ok, lines, trailing?} ->
+          {:ok, lines, trailing?}
+
+        {:error, reason} ->
+          {:error, "could not read file: " <> Tool.Lib.format_error(reason)}
       end
     else
       {:ok, [], false}
@@ -148,7 +151,7 @@ defmodule Phod.Agent.Tool.ApplyDiff do
     case do_apply(Enum.with_index(hunks, 1), 0, lines) do
       {:ok, result} ->
         File.mkdir_p!(Path.dirname(absolute))
-        Tool.write_lines(absolute, result, trailing_newline? or created?)
+        Tool.Lib.write_lines(absolute, result, trailing_newline? or created?)
 
         {:ok, %{path: path, applied_hunks: length(hunks), created?: created?}}
 

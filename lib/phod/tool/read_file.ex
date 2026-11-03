@@ -1,14 +1,16 @@
-defmodule Phod.Agent.Tool.ReadFile do
+defmodule Phod.Tool.ReadFile do
   @moduledoc false
 
-  @behaviour Phod.Agent.Tool
+  alias Phod.Tool
+
+  @behaviour Tool.B
 
   @max_lines 2_000
 
-  @impl Phod.Agent.Tool
-  def name, do: "read_file"
+  @impl Tool.B
+  def name, do: :read_file
 
-  @impl Phod.Agent.Tool
+  @impl Tool.B
   def description,
     do: """
     Read the contents of one file in the worktree. Use list_files first to \
@@ -16,17 +18,17 @@ defmodule Phod.Agent.Tool.ReadFile do
     non-existent path or a directory returns an error.\
     """
 
-  @impl Phod.Agent.Tool
+  @impl Tool.B
   def run(root, input) do
     path = Map.get(input, "path")
 
-    case Phod.Agent.Tool.resolve(root, path) do
+    case Tool.Lib.resolve(root, path) do
       {:ok, absolute} ->
         case File.read(absolute) do
           {:ok, content} ->
             {:ok,
              %{
-               path: Phod.Agent.Tool.relative_path(root, absolute),
+               path: Tool.Lib.relative_path(root, absolute),
                content: format_content(content)
              }}
 
@@ -34,7 +36,7 @@ defmodule Phod.Agent.Tool.ReadFile do
             {:error, "#{inspect(path)} is a directory; use list_files on it"}
 
           {:error, reason} ->
-            {:error, "could not read #{inspect(path)}: #{Phod.Agent.Tool.format_error(reason)}"}
+            {:error, "could not read #{inspect(path)}: #{Tool.Lib.format_error(reason)}"}
         end
 
       {:error, reason} ->

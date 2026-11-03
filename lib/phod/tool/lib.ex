@@ -1,25 +1,15 @@
-defmodule Phod.Agent.Tool do
+defmodule Phod.Tool.Lib do
   @moduledoc """
-  Behaviour for tools made available to the coding agent's LLM.
+  Shared filesystem helpers for tool implementations.
 
-  A tool is a small amount of functionality the agent can call: it takes a
-  structured input, executes within the confines of the session worktree, and
-  returns a result (or a precise error the LLM can act on).
-
-  Every tool receives the worktree root as its first argument and receives all
-  paths in its input **relative to the worktree root**. Implementations must go
-  through `resolve/2` before touching the filesystem — it validates that the
-  path stays inside the worktree (rejecting `..`, absolute paths, and symlinks
+  Tools operate strictly inside the session worktree. Every tool receives the
+  worktree root as its first argument and receives all paths in its input
+  **relative to the worktree root**. Implementations must go through
+  `resolve/3` before touching the filesystem — it validates that the path
+  stays inside the worktree (rejecting `..`, absolute paths, and symlinks
   that escape). Worktrees live under `~/phod/tree/`; the bare repos under
   `~/phod/repo/` are never touched by tools.
   """
-
-  @type input :: %{optional(String.t()) => term()}
-  @type result :: {:ok, term()} | {:error, String.t()}
-
-  @callback name() :: String.t()
-  @callback description() :: String.t()
-  @callback run(root :: String.t(), input :: input()) :: result()
 
   @doc """
   Resolves `path` (relative to the worktree `root`) into a checked filesystem
@@ -166,7 +156,7 @@ defmodule Phod.Agent.Tool do
   def format_error(reason) when is_binary(reason), do: reason
 
   @doc """
-  Splits a file's content into `t:line/0`-style strings, preserving whether the
+  Splits a file's content into line strings, preserving whether the
   file ended with a newline. Used by both `read_file` (for numbered output) and
   `apply_diff` (for writing back atomically).
   """
@@ -185,7 +175,7 @@ defmodule Phod.Agent.Tool do
 
   @doc """
   Writes `lines` back to `path`, appending a trailing newline when
-  `trailing_newline?` (or `force_newline?`) is true.
+  `trailing_newline?` is true.
   """
   @spec write_lines(String.t(), [String.t()], boolean()) :: :ok | {:error, String.t()}
   def write_lines(path, lines, trailing_newline?) do

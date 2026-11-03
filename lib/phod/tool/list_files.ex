@@ -1,12 +1,14 @@
-defmodule Phod.Agent.Tool.ListFiles do
+defmodule Phod.Tool.ListFiles do
   @moduledoc false
 
-  @behaviour Phod.Agent.Tool
+  alias Phod.Tool
 
-  @impl Phod.Agent.Tool
-  def name, do: "list_files"
+  @behaviour Tool.B
 
-  @impl Phod.Agent.Tool
+  @impl Tool.B
+  def name, do: :list_files
+
+  @impl Tool.B
   def description,
     do: """
     List the contents of a directory in the worktree. Returns names with a `/` \
@@ -15,11 +17,11 @@ defmodule Phod.Agent.Tool.ListFiles do
     Does not recurse — call it again on subdirectories.\
     """
 
-  @impl Phod.Agent.Tool
+  @impl Tool.B
   def run(root, input) do
     path = Map.get(input, "path", ".")
 
-    case Phod.Agent.Tool.resolve(root, path) do
+    case Tool.Lib.resolve(root, path) do
       {:ok, absolute} ->
         case File.ls(absolute) do
           {:ok, names} ->
@@ -31,10 +33,10 @@ defmodule Phod.Agent.Tool.ListFiles do
                 %{name: name, type: type}
               end
 
-            {:ok, %{path: Phod.Agent.Tool.relative_path(root, absolute), entries: entries}}
+            {:ok, %{path: Tool.Lib.relative_path(root, absolute), entries: entries}}
 
           {:error, reason} ->
-            {:error, "could not list #{inspect(path)}: #{Phod.Agent.Tool.format_error(reason)}"}
+            {:error, "could not list #{inspect(path)}: #{Tool.Lib.format_error(reason)}"}
         end
 
       {:error, reason} ->

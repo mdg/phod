@@ -1,14 +1,16 @@
-defmodule Phod.Agent.Tool.GitGrep do
+defmodule Phod.Tool.GitGrep do
   @moduledoc false
 
-  @behaviour Phod.Agent.Tool
+  alias Phod.Tool
+
+  @behaviour Tool.B
 
   @max_results 50
 
-  @impl Phod.Agent.Tool
-  def name, do: "git_grep"
+  @impl Tool.B
+  def name, do: :git_grep
 
-  @impl Phod.Agent.Tool
+  @impl Tool.B
   def description,
     do: """
     Search file contents across the worktree with a regular expression \
@@ -17,7 +19,7 @@ defmodule Phod.Agent.Tool.GitGrep do
     lives before editing it. Paths in results are relative to the worktree root.\
     """
 
-  @impl Phod.Agent.Tool
+  @impl Tool.B
   def run(root, input) do
     case Map.get(input, "pattern") do
       pattern when is_binary(pattern) and pattern != "" ->
@@ -29,9 +31,9 @@ defmodule Phod.Agent.Tool.GitGrep do
   end
 
   defp search(root, pattern, path) do
-    case Phod.Agent.Tool.resolve(root, path) do
+    case Tool.Lib.resolve(root, path) do
       {:ok, absolute} ->
-        subdir = Phod.Agent.Tool.relative_path(root, absolute)
+        subdir = Tool.Lib.relative_path(root, absolute)
 
         args = [
           "--no-messages",

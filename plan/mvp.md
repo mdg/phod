@@ -218,9 +218,9 @@ Header: session name, presence indicators (avatars of connected users), and a
 
 ## 5. Milestones
 
-1. **M1 — Tools + sandbox:** implement `list_files`, `read_file`, `git_grep`,
-   `apply_diff` as a `Phod.Agent.Tool` behaviour with a shared worktree
-   path-validation helper; smoke-test them against `~/phod/tree/mdg/lucky/`.
+1. ✅ **M1 — Tools + sandbox:** implement `list_files`, `read_file`, `git_grep`,
+   `apply_diff` as a `Phod.Tool.B` behaviour with shared worktree helpers in
+   `Phod.Tool.Lib` (registry in `Phod.Tool`); done and tested.
 2. **M2 — Agent loop + session GenServer:** `Phod.Agent.Session` GenServer with
    Registry naming, LLM provider via `Req`, tool-calling loop, PubSub broadcasts,
    system prompt. Terminal/Ping test harness before the UI exists.

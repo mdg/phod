@@ -22,7 +22,7 @@ defmodule Phod.Tool.ReadFile do
   def run(root, input) do
     path = Map.get(input, "path")
 
-    case Tool.Lib.resolve(root, path) do
+    case Tool.Lib.resolve_path(root, path) do
       {:ok, absolute} ->
         case File.read(absolute) do
           {:ok, content} ->

@@ -29,7 +29,7 @@ defmodule Phod.Tool.ApplyDiff do
     path = Map.get(input, "path")
     diff = Map.get(input, "diff")
 
-    with {:ok, absolute} <- Tool.Lib.resolve(root, path, allow_new?: true),
+    with {:ok, absolute} <- Tool.Lib.resolve_path(root, path, allow_new?: true),
          {:ok, diff} <- validate_diff(diff),
          {:ok, lines, trailing_newline?} <- read_lines(absolute),
          {:ok, hunks} <- parse_hunks(diff) do

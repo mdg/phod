@@ -8,7 +8,7 @@ defmodule Phod.Tool.B do
 
   Every tool receives the worktree root as its first argument and receives all
   paths in its input **relative to the worktree root**. Implementations must go
-  through `Phod.Tool.Lib.resolve/3` before touching the filesystem — it validates
+  through `Phod.Tool.Lib.resolve_path/3` before touching the filesystem — it validates
   that the path stays inside the worktree (rejecting `..`, absolute paths, and
   symlinks that escape). Worktrees live under `~/phod/tree/`; the bare repos
   under `~/phod/repo/` are never touched by tools.

@@ -87,6 +87,9 @@ custom classes must fully style the input
 - Predicate function names should not start with `is_` and should end in a question mark. Names like `is_thing` should be reserved for guards
 - Elixir's builtin OTP primitives like `DynamicSupervisor` and `Registry`, require names in the child spec, such as `{DynamicSupervisor, name: MyApp.MyDynamicSup}`, then you can use `DynamicSupervisor.start_child(MyApp.MyDynamicSup, child_spec)`
 - Use `Task.async_stream(collection, callback, options)` for concurrent enumeration with back-pressure. The majority of times you will want to pass `timeout: :infinity` as option
+- If an invalid function parameter can be pattern matched, use a function head matching the case to
+  catch the input and return an error.
+- Use the Rexult module to handle ok and error tuple results
 
 ## Mix guidelines
 

@@ -21,7 +21,7 @@ defmodule Phod.Tool.ListFiles do
   def run(root, input) do
     path = Map.get(input, "path", ".")
 
-    case Tool.Lib.resolve(root, path) do
+    case Tool.Lib.resolve_path(root, path) do
       {:ok, absolute} ->
         case File.ls(absolute) do
           {:ok, names} ->

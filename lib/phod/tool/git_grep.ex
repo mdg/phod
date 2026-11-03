@@ -3,6 +3,10 @@ defmodule Phod.Tool.GitGrep do
 
   alias Phod.Tool
 
+  import Rexult
+
+  require Logger
+
   @behaviour Tool.B
 
   @max_results 50
@@ -31,7 +35,7 @@ defmodule Phod.Tool.GitGrep do
   end
 
   defp search(root, pattern, path) do
-    case Tool.Lib.resolve(root, path) do
+    case Tool.Lib.resolve_path(root, path) do
       {:ok, absolute} ->
         subdir = Tool.Lib.relative_path(root, absolute)
 
@@ -49,32 +53,47 @@ defmodule Phod.Tool.GitGrep do
           subdir
         ]
 
-        case System.cmd("grep", args, cd: root, stderr_to_stdout: true) do
-          {output, 0} ->
-            matches =
-              output
-              |> String.split("\n", trim: true)
-              |> Enum.reject(&String.starts_with?(&1, "grep: "))
-              |> Enum.take(@max_results)
-              |> Enum.map(&parse_line/1)
+        {output, exit_code} = System.cmd("grep", args, cd: root, stderr_to_stdout: true)
 
-            {:ok, %{matches: matches, truncated?: length(matches) == @max_results}}
+        result =
+          case exit_code do
+            0 -> {:ok, output}
+            # no matches: treat as an ok result with no output
+            1 -> {:ok, ""}
+            _ -> {:error, output}
+          end
 
-          {stderr, 1} when stderr == "" ->
-            {:ok, %{matches: [], truncated?: false}}
-
-          {stderr, 2} ->
-            case stderr |> String.trim() |> String.replace(~r/^(\S*grep: )+/, "") do
-              "" -> {:error, "invalid expression or unreadable path (grep status 2)"}
-              reason -> {:error, "invalid regular expression: " <> reason}
-            end
-
-          {_stdout, code} ->
-            {:error, "grep exited with status #{code}"}
-        end
+        result
+        |> map_ok(&parse_output/1)
+        |> map_err(&normalize_grep_error/1)
+        |> on_err(fn reason -> Logger.warning("git_grep failed: " <> reason) end)
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  # {"path:line:text", ...} -> %{matches: ..., truncated?}
+  defp parse_output("") do
+    %{matches: [], truncated?: false}
+  end
+
+  defp parse_output(output) do
+    matches =
+      output
+      |> String.split("\n", trim: true)
+      |> Enum.reject(&String.starts_with?(&1, "grep: "))
+      |> Enum.take(@max_results)
+      |> Enum.map(&parse_line/1)
+
+    %{matches: matches, truncated?: length(matches) == @max_results}
+  end
+
+  # grep's error output ("path/to/grep: message") -> normalized reason message
+  defp normalize_grep_error(output) do
+    case output |> String.trim() |> String.replace(~r/^(\S*grep: )+/, "") do
+      "" -> "invalid expression or unreadable path (grep error with no message)"
+      reason -> "invalid regular expression: " <> reason
     end
   end
 

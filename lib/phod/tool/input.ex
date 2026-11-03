@@ -8,7 +8,7 @@ defmodule Phod.Tool.Input do
   @type t :: %{
     diff: String.t() | nil,
     path: String.t(),
-    pattern: String.t() | nil,
+    patterns: [String.t()],
     full_path: String.t() | nil,
     root: String.t(),
     allow_new_path?: boolean(),
@@ -17,7 +17,7 @@ defmodule Phod.Tool.Input do
   defstruct [
     diff: nil,
     path: ".",
-    pattern: nil,
+    patterns: [],
     full_path: nil,
     root: ".",
     allow_new_path?: false,
@@ -26,7 +26,7 @@ defmodule Phod.Tool.Input do
   def from_map(map, root) do
     fields =
       map
-      |> Map.take(["diff", "path", "pattern"])
+      |> Map.take(["diff", "path", "patterns"])
       |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
       |> Map.put(:root, root)
 
@@ -83,16 +83,20 @@ defmodule Phod.Tool.Input do
     end)
   end
 
-  def validate(:pattern, %__MODULE__{pattern: p}) when not is_binary(p) do
-    {:error, "invalid pattern"}
+  def validate(:patterns, %__MODULE__{patterns: p}) when not is_list(p) do
+    {:error, "invalid patterns"}
   end
 
-  def validate(:pattern, %__MODULE__{pattern: ""}) do
-    {:error, "invalid empty pattern"}
+  def validate(:patterns, %__MODULE__{patterns: []}) do
+    {:error, "invalid empty patterns"}
   end
 
-  def validate(:pattern, input) do
-    {:ok, input}
+  def validate(:patterns, %__MODULE__{patterns: patterns} = input) do
+    if Enum.all?(patterns, &(is_binary(&1) and &1 != "")) do
+      {:ok, input}
+    else
+      {:error, "invalid empty patterns"}
+    end
   end
 
   @doc """
@@ -131,7 +135,7 @@ defmodule Phod.Tool.Input do
       |> map_err(fn _ -> "invalid path" end)
       |> ok_and_then(fn safe_path ->
         if allow_new? or File.exists?(Path.join(root, safe_path)) do
-          {:ok, safe_path}
+          {:ok, if(safe_path == "", do: ".", else: safe_path)}
         else
           {:error, "invalid path"}
         end

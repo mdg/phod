@@ -79,8 +79,12 @@ defmodule Phod.Tool.ApplyDiffTest do
   end
 
   test "errors on an empty diff", %{root: root} do
-    assert {:error, msg} = Tool.run(:apply_diff, root, %{path: "README.md", diff: "   "})
-    assert msg =~ "non-empty unified diff"
+    params = %{
+      "path" => "README.md",
+      "diff" => "   ",
+    }
+    assert {:error, msg} = Tool.run(:apply_diff, root, params)
+    assert msg == "cannot apply empty diff"
   end
 
   test "errors when no hunks were found", %{root: root} do
@@ -99,6 +103,6 @@ defmodule Phod.Tool.ApplyDiffTest do
         "diff" => "@@ -0,0 +1,1 @@\n+evil\n"
       })
 
-    assert msg =~ "escapes the worktree root"
+    assert msg == "invalid path"
   end
 end

@@ -47,18 +47,19 @@ Reads the contents of a single file.
 - Output: the file's text (with line numbers, so the LLM can reference
   locations in diffs), or an error. Large files are truncated with a notice.
 
-### `git_grep`
+### `grep`
 
 Searches project contents.
 
-- **Description (for the LLM):** "Search file contents across the worktree with a
-  regular expression (implementation uses `grep` internally, hence the name).
-  Returns matching file paths, line numbers, and line contents. Use this to find
-  where code lives before editing it. Paths in results are relative to the
-  worktree root."
-- Input: `{ pattern: string, path?: string }`
+- **Description (for the LLM):** "Search file contents across the worktree with
+  one or more regular expressions (implementation uses `ripgrep` internally).
+  Provide a list of one or more patterns - matches are the union of all given
+  patterns. Returns matching file paths, line numbers, and line contents. Use
+  this to find where code lives before editing it. Paths in results are
+  relative to the worktree root."
+- Input: `{ patterns: [string], path?: string }`
 - Output: list of matches (`path`, `line_number`, `line`), capped at N results,
-  or an error if the pattern is invalid.
+  or an error if a pattern is invalid.
 
 ### `apply_diff`
 
@@ -206,7 +207,7 @@ Presence is responsible for *who* is in the session.
 Three-pane layout:
 
 1. **Chat pane** — transcript, user input box, streaming agent output, collapsible
-   tool call blocks (`list_files`, `read_file`, `git_grep`, `apply_diff`) with results.
+   tool call blocks (`list_files`, `read_file`, `grep`, `apply_diff`) with results.
 2. **File explorer** — live-updating tree of the worktree root (uses the same
    backend as the `list_files` tool).
 3. **Editor pane** — view (and later edit) a selected file with line numbers;
@@ -218,7 +219,7 @@ Header: session name, presence indicators (avatars of connected users), and a
 
 ## 5. Milestones
 
-1. ✅ **M1 — Tools + sandbox:** implement `list_files`, `read_file`, `git_grep`,
+1. ✅ **M1 — Tools + sandbox:** implement `list_files`, `read_file`, `grep`,
    `apply_diff` as a `Phod.Tool.B` behaviour with shared worktree helpers in
    `Phod.Tool.Lib` (registry in `Phod.Tool`); done and tested.
 2. **M2 — Agent loop + session GenServer:** `Phod.Agent.Session` GenServer with

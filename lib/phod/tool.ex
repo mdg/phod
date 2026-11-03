@@ -9,7 +9,7 @@ defmodule Phod.Tool do
 
   @tools [
     __MODULE__.ApplyDiff,
-    __MODULE__.GitGrep,
+    __MODULE__.Grep,
     __MODULE__.ReadFile,
     __MODULE__.ListFiles
   ]

@@ -10,37 +10,37 @@ defmodule Phod.Tool.LibTest do
     write(root, "lib/foo.ex", "1\n")
 
     assert {:ok, resolved} = Phod.Tool.Input.resolve_path(root, "lib/foo.ex", false)
-    assert resolved == Path.join(root, "lib/foo.ex")
+    assert resolved == "lib/foo.ex"
   end
 
   test "defaults to the worktree root", %{root: root} do
     assert {:ok, resolved} = Phod.Tool.Input.resolve_path(root, ".", false)
-    assert resolved == root
+    assert resolved == "."
   end
 
   test "rejects absolute paths", %{root: root} do
     assert {:error, msg} = Phod.Tool.Input.resolve_path(root, "/etc/passwd", false)
-    assert msg =~ "relative to the worktree root"
+    assert msg == "invalid path"
   end
 
   test "rejects `..` traversal", %{root: root} do
     assert {:error, msg} = Phod.Tool.Input.resolve_path(root, "../outside.txt", false)
-    assert msg =~ "escapes the worktree root"
+    assert msg == "invalid path"
   end
 
   test "rejects paths in a nonexistent parent", %{root: root} do
     assert {:error, msg} = Phod.Tool.Input.resolve_path(root, "no/such/dir/file.txt", false)
-    assert msg =~ "invalid worktree path"
+    assert msg == "invalid path"
   end
 
   test "accepts new files for creation when allow_new? is set", %{root: root} do
     # strict mode: the parent does not exist yet
     assert {:error, msg} = Phod.Tool.Input.resolve_path(root, "new/file.txt", false)
-    assert msg =~ "invalid worktree path"
+    assert msg == "invalid path"
 
     # allow_new?: apply_diff's mode
     assert {:ok, resolved} = Phod.Tool.Input.resolve_path(root, "new/file.txt", true)
-    assert resolved == Path.join(root, "new/file.txt")
+    assert resolved == "new/file.txt"
   end
 
   test "rejects symlinks that escape the worktree", %{root: root} do
@@ -51,14 +51,22 @@ defmodule Phod.Tool.LibTest do
     symlink!(outside, Path.join(root, "link.txt"))
 
     assert {:error, msg} = Phod.Tool.Input.resolve_path(root, "link.txt", false)
-    assert msg =~ "escapes the worktree root"
+    assert msg == "invalid path"
+  end
+
+  test "rejects absolute symlinks to inside the worktree", %{root: root} do
+    write(root, "work/inside.txt", "ok\n")
+    symlink!(Path.join(root, "work/inside.txt"), Path.join(root, "alias.txt"))
+
+    assert {:error, msg} = Phod.Tool.Input.resolve_path(root, "alias.txt", false)
+    assert msg == "invalid path"
   end
 
   test "allows symlinks that stay inside the worktree", %{root: root} do
     write(root, "work/inside.txt", "ok\n")
-    symlink!(Path.join(root, "work/inside.txt"), Path.join(root, "alias.txt"))
+    symlink!("work/inside.txt", Path.join(root, "alias.txt"))
 
     assert {:ok, alias_path} = Phod.Tool.Input.resolve_path(root, "alias.txt", false)
-    assert alias_path == Path.join(root, "alias.txt")
+    assert alias_path == "work/inside.txt"
   end
 end

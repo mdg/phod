@@ -17,13 +17,13 @@ defmodule Phod.Tool.ReadFileTest do
 
   test "errors on missing files", %{root: root} do
     assert {:error, msg} = Tool.run(:read_file, root, %{"path" => "nope.txt"})
-    assert msg =~ "no such file or directory"
+    assert msg == "invalid path"
   end
 
   test "errors on directories with a helpful hint", %{root: root} do
     write(root, "src/index.ex", "x\n")
 
     assert {:error, msg} = Tool.run(:read_file, root, %{"path" => "src"})
-    assert msg =~ "use list_files"
+    assert msg == "\"src\" is a directory, use list_files"
   end
 end

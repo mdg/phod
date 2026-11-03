@@ -27,6 +27,6 @@ defmodule Phod.Tool.ListFilesTest do
 
   test "errors on missing paths", %{root: root} do
     assert {:error, msg} = Tool.run(:list_files, root, %{"path" => "nope"})
-    assert msg =~ "no such file or directory"
+    assert msg == "invalid path"
   end
 end

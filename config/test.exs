@@ -6,9 +6,10 @@ import Config
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
 config :phod, Phod.Repo,
-  username: "postgres",
-  password: "postgres",
+  username: "phodapi",
+  password: "phod123",
   hostname: "localhost",
+  port: 5433,
   database: "phod_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2

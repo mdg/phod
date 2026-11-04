@@ -36,6 +36,13 @@ config :phoenix_live_view,
 # at the `config/runtime.exs`.
 config :phod, Phod.Mailer, adapter: Swoosh.Adapters.Local
 
+# Configure the LLM client (OpenCode Zen, Anthropic Messages API format)
+config :phod, Phod.Session.Llm,
+  base_url: "https://opencode.ai/zen",
+  model: "opencode/claude-sonnet-5",
+  max_tokens: 4096,
+  req_options: []
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

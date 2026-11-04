@@ -19,10 +19,28 @@ defmodule Phod.Tool do
   @spec all() :: [module()]
   def all, do: @tools
 
-  @spec specs() :: [%{required(:name) => atom(), required(:description) => String.t()}]
+  @spec specs() ::
+          [
+            %{
+              required(:name) => atom(),
+              required(:description) => String.t(),
+              required(:input_schema) => map()
+            }
+          ]
   def specs do
     for tool <- @tools do
-      %{name: tool.name(), description: tool.description()}
+      %{name: tool.name(), description: tool.description(), input_schema: tool.input_schema()}
+    end
+  end
+
+  @doc """
+  Builds the `tools` array shape the Anthropic Messages API expects, from
+  the registry — so callers never need their own copy of tool knowledge.
+  """
+  @spec anthropic_tools() :: [map()]
+  def anthropic_tools do
+    for %{name: name, description: description, input_schema: schema} <- specs() do
+      %{"name" => Atom.to_string(name), "description" => description, "input_schema" => schema}
     end
   end
 

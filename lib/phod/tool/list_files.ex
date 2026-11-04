@@ -25,6 +25,21 @@ defmodule Phod.Tool.ListFiles do
   end
 
   @impl Tool.B
+  def input_schema do
+    %{
+      "type" => "object",
+      "properties" => %{
+        "path" => %{
+          "type" => "string",
+          "description" =>
+            "Directory path relative to the worktree root. Defaults to the root (\".\") when omitted."
+        }
+      },
+      "required" => []
+    }
+  end
+
+  @impl Tool.B
   def run(%Tool.Input{} = input) do
     File.ls(input.full_path)
     |> map_ok(fn names ->
@@ -38,7 +53,7 @@ defmodule Phod.Tool.ListFiles do
 
       %{
         path: input.path,
-        entries: entries,
+        entries: entries
       }
     end)
     |> map_err(fn reason ->

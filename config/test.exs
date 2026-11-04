@@ -24,6 +24,11 @@ config :phod, PhodWeb.Endpoint,
 # In test we don't send emails
 config :phod, Phod.Mailer, adapter: Swoosh.Adapters.Test
 
+# Route the LLM client through Req.Test instead of the network
+config :phod, Phod.Session.Llm,
+  api_key: "test-api-key",
+  req_options: [plug: {Req.Test, Phod.Session.LlmStub}]
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

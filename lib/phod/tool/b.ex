@@ -22,4 +22,14 @@ defmodule Phod.Tool.B do
   @callback description() :: String.t()
   @callback tool_fields() :: [atom()]
   @callback run(input :: Tool.Input.t()) :: result()
+
+  @doc """
+  A JSON Schema (string-keyed) describing this tool's LLM-facing input,
+  e.g. `%{"type" => "object", "properties" => %{...}, "required" => [...]}`.
+
+  Only fields the LLM actually supplies belong here. Internal capability
+  flags consumed by `Phod.Tool.Input.validate/2` (such as `apply_diff`'s
+  `:allow_new_path`) are not real inputs and must not appear in this schema.
+  """
+  @callback input_schema() :: map()
 end

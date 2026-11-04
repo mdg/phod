@@ -222,9 +222,11 @@ Header: session name, presence indicators (avatars of connected users), and a
 1. ✅ **M1 — Tools + sandbox:** implement `list_files`, `read_file`, `grep`,
    `apply_diff` as a `Phod.Tool.B` behaviour with shared worktree helpers in
    `Phod.Tool.Lib` (registry in `Phod.Tool`); done and tested.
-2. **M2 — Agent loop + session GenServer:** `Phod.Agent.Session` GenServer with
-   Registry naming, LLM provider via `Req`, tool-calling loop, PubSub broadcasts,
-   system prompt. Terminal/Ping test harness before the UI exists.
+2. ✅ **M2 — Agent loop + session GenServer:** `Phod.Session` GenServer with
+   Registry naming, LLM provider via `Req` (Anthropic Messages API format,
+   hosted by OpenCode Zen), tool-calling loop in `Phod.Session.Loop`, PubSub
+   broadcasts, system prompt in `Phod.Session.Llm`. Manual iex harness
+   documented in `Phod.Session`'s moduledoc; done and tested.
 3. **M3 — Multiplayer session UI:** LiveView three-pane interface, session
    topic over PubSub, Presence-based user list, streaming transcript.
 4. **M4 — Polish:** error surfacing, edit highlighting, loading/stop controls,

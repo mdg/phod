@@ -6,22 +6,20 @@ defmodule Phod.Tool.Input do
   import Rexult
 
   @type t :: %{
-    diff: String.t() | nil,
-    path: String.t(),
-    patterns: [String.t()],
-    full_path: String.t() | nil,
-    root: String.t(),
-    allow_new_path?: boolean(),
-  }
+          diff: String.t() | nil,
+          path: String.t(),
+          patterns: [String.t()],
+          full_path: String.t() | nil,
+          root: String.t(),
+          allow_new_path?: boolean()
+        }
 
-  defstruct [
-    diff: nil,
-    path: ".",
-    patterns: [],
-    full_path: nil,
-    root: ".",
-    allow_new_path?: false,
-  ]
+  defstruct diff: nil,
+            path: ".",
+            patterns: [],
+            full_path: nil,
+            root: ".",
+            allow_new_path?: false
 
   def from_map(map, root) do
     fields =
@@ -76,10 +74,7 @@ defmodule Phod.Tool.Input do
   def validate(:path, %__MODULE__{} = input) do
     resolve_path(input.root, input.path, input.allow_new_path?)
     |> map_ok(fn safe_path ->
-      %{input |
-        path: safe_path,
-        full_path: Path.join(input.root, safe_path)
-      }
+      %{input | path: safe_path, full_path: Path.join(input.root, safe_path)}
     end)
   end
 

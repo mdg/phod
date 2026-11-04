@@ -81,8 +81,9 @@ defmodule Phod.Tool.ApplyDiffTest do
   test "errors on an empty diff", %{root: root} do
     params = %{
       "path" => "README.md",
-      "diff" => "   ",
+      "diff" => "   "
     }
+
     assert {:error, msg} = Tool.run(:apply_diff, root, params)
     assert msg == "cannot apply empty diff"
   end

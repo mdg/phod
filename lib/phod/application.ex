@@ -12,8 +12,9 @@ defmodule Phod.Application do
       Phod.Repo,
       {DNSCluster, query: Application.get_env(:phod, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Phod.PubSub},
-      # Start a worker by calling: Phod.Worker.start_link(arg)
-      # {Phod.Worker, arg},
+      {Registry, keys: :unique, name: Phod.Session.Registry},
+      {Task.Supervisor, name: Phod.Session.TaskSupervisor},
+      {Phod.Session.Supervisor, []},
       # Start to serve requests, typically the last entry
       PhodWeb.Endpoint
     ]

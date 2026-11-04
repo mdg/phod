@@ -24,12 +24,26 @@ defmodule Phod.Tool.ReadFile do
   def tool_fields(), do: [:path]
 
   @impl Tool.B
+  def input_schema do
+    %{
+      "type" => "object",
+      "properties" => %{
+        "path" => %{
+          "type" => "string",
+          "description" => "File path relative to the worktree root."
+        }
+      },
+      "required" => ["path"]
+    }
+  end
+
+  @impl Tool.B
   def run(%Tool.Input{path: path} = input) do
     File.read(input.full_path)
     |> map_ok(fn content ->
       %{
         path: path,
-        content: format_content(content),
+        content: format_content(content)
       }
     end)
     |> map_err(fn

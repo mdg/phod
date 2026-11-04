@@ -31,6 +31,28 @@ defmodule Phod.Tool.Grep do
   end
 
   @impl Tool.B
+  def input_schema do
+    %{
+      "type" => "object",
+      "properties" => %{
+        "patterns" => %{
+          "type" => "array",
+          "items" => %{"type" => "string"},
+          "description" =>
+            "One or more regular expressions (Rust regex syntax, as used by ripgrep). " <>
+              "Matches are the union of all given patterns."
+        },
+        "path" => %{
+          "type" => "string",
+          "description" =>
+            "Subdirectory to search, relative to the worktree root. Defaults to the whole worktree."
+        }
+      },
+      "required" => ["patterns"]
+    }
+  end
+
+  @impl Tool.B
   def run(%Tool.Input{patterns: patterns} = input) do
     args = ["--json"] ++ Enum.flat_map(patterns, &["-e", &1]) ++ ["--", "."]
 

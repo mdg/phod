@@ -16,6 +16,10 @@ import Config
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
+if api_key = System.get_env("OPENCODE_API_KEY") do
+  config :phod, Phod.Session.Llm, api_key: api_key
+end
+
 if System.get_env("PHX_SERVER") do
   config :phod, PhodWeb.Endpoint, server: true
 end

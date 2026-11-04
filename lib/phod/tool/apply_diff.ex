@@ -30,6 +30,27 @@ defmodule Phod.Tool.ApplyDiff do
   end
 
   @impl Tool.B
+  def input_schema do
+    %{
+      "type" => "object",
+      "properties" => %{
+        "path" => %{
+          "type" => "string",
+          "description" =>
+            "File path relative to the worktree root. To create a new file, use a path that does not yet exist."
+        },
+        "diff" => %{
+          "type" => "string",
+          "description" =>
+            "A unified diff with one or more '@@ -l,c +l,c @@' hunks to apply to the file. " <>
+              "To create a new file, diff against /dev/null."
+        }
+      },
+      "required" => ["path", "diff"]
+    }
+  end
+
+  @impl Tool.B
   def run(%Tool.Input{full_path: full_path, path: path, diff: diff}) do
     with {:ok, lines, trailing_newline?} <- read_lines(full_path),
          {:ok, hunks} <- parse_hunks(diff) do

@@ -48,7 +48,7 @@ defmodule PhodWeb.Layouts do
             <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
           </li>
           <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
+            <a href="https://github.com/mdg/phod" class="btn btn-ghost">GitHub</a>
           </li>
           <li>
             <.theme_toggle />
@@ -62,10 +62,8 @@ defmodule PhodWeb.Layouts do
       </div>
     </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
-        {render_slot(@inner_block)}
-      </div>
+    <main class="px-4 py-6 sm:px-6 lg:px-8">
+      {render_slot(@inner_block)}
     </main>
 
     <.flash_group flash={@flash} />

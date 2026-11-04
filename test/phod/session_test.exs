@@ -16,11 +16,7 @@ defmodule Phod.SessionTest do
     end
   end
 
-  defp start_and_allow(id, root) do
-    {:ok, pid} = Phod.Session.ensure_started(id, root)
-    Req.Test.allow(Phod.Session.LlmStub, self(), pid)
-    pid
-  end
+  import Phod.Session.TestHelpers, only: [start_and_allow: 2]
 
   test "send_message/2 runs the loop and settles back to :idle", %{id: id, root: root} do
     Req.Test.expect(Phod.Session.LlmStub, text_response("hello!"))

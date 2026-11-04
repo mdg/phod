@@ -227,8 +227,13 @@ Header: session name, presence indicators (avatars of connected users), and a
    hosted by OpenCode Zen), tool-calling loop in `Phod.Session.Loop`, PubSub
    broadcasts, system prompt in `Phod.Session.Llm`. Manual iex harness
    documented in `Phod.Session`'s moduledoc; done and tested.
-3. **M3 — Multiplayer session UI:** LiveView three-pane interface, session
-   topic over PubSub, Presence-based user list, streaming transcript.
+3. ✅ **M3 — Multiplayer session UI:** LiveView three-pane interface
+   (`PhodWeb.SessionLive.Show`, chat/file-tree/editor), session entry form
+   (`PhodWeb.SessionEntryLive`), join flow over a real Plug request
+   (`PhodWeb.SessionJoinController`) for the per-browser display name,
+   `PhodWeb.Presence` roster sharing the session's PubSub topic, transcript
+   driven incrementally by `Phod.Session`'s existing broadcasts; done and
+   tested.
 4. **M4 — Polish:** error surfacing, edit highlighting, loading/stop controls,
    basic e2e tests (agent makes an edit visible in the editor pane).
 

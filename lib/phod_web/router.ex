@@ -17,7 +17,9 @@ defmodule PhodWeb.Router do
   scope "/", PhodWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", SessionEntryLive, :new
+    post "/sessions/:id/join", SessionJoinController, :create
+    live "/sessions/:id", SessionLive.Show, :show
   end
 
   # Other scopes may use custom stacks.

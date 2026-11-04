@@ -12,6 +12,7 @@ defmodule Phod.Application do
       Phod.Repo,
       {DNSCluster, query: Application.get_env(:phod, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Phod.PubSub},
+      PhodWeb.Presence,
       {Registry, keys: :unique, name: Phod.Session.Registry},
       {Task.Supervisor, name: Phod.Session.TaskSupervisor},
       {Phod.Session.Supervisor, []},

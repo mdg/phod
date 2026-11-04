@@ -5,10 +5,11 @@ defmodule PhodWeb.SessionLive.Show do
   broadcasts on `"sessions:<id>"` plus a `PhodWeb.Presence` roster sharing
   that same topic.
 
-  `/sessions/:id` never auto-creates a session — there's no id -> worktree
-  mapping to create one from (that's `PhodWeb.SessionEntryLive`'s job via
-  the home page form). A client whose session cookie lacks a display name
-  (set by `PhodWeb.SessionJoinController`) sees a join prompt instead.
+  `/sessions/:owner/:tree` never auto-creates a session — there's no
+  owner/tree -> worktree mapping to create one from (that's
+  `PhodWeb.SessionEntryController`'s job, currently pointed at one hardcoded
+  session). A client whose session cookie lacks a display name (set by
+  `PhodWeb.SessionJoinController`) sees a join prompt instead.
   """
 
   use PhodWeb, :live_view
@@ -18,7 +19,10 @@ defmodule PhodWeb.SessionLive.Show do
   alias PhodWeb.SessionLive.{Components, FileTree, Transcript}
 
   @impl true
-  def mount(%{"id" => id}, session, socket) do
+  def mount(%{"owner" => owner, "tree" => tree}, session, socket) do
+    id = "#{owner}/#{tree}"
+    join_path = ~p"/sessions/#{owner}/#{tree}/join"
+
     case Session.whereis(id) do
       :error ->
         {:ok, assign(socket, id: id, view: :not_found)}
@@ -30,7 +34,7 @@ defmodule PhodWeb.SessionLive.Show do
         if display_name && client_id do
           {:ok, mount_session(socket, id, display_name, client_id)}
         else
-          {:ok, assign(socket, id: id, view: :join)}
+          {:ok, assign(socket, id: id, join_path: join_path, view: :join)}
         end
     end
   end
@@ -84,7 +88,7 @@ defmodule PhodWeb.SessionLive.Show do
   def render(%{view: :join} = assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <Components.join_form id={@id} />
+      <Components.join_form id={@id} join_path={@join_path} />
     </Layouts.app>
     """
   end

@@ -228,8 +228,9 @@ Header: session name, presence indicators (avatars of connected users), and a
    broadcasts, system prompt in `Phod.Session.Llm`. Manual iex harness
    documented in `Phod.Session`'s moduledoc; done and tested.
 3. ✅ **M3 — Multiplayer session UI:** LiveView three-pane interface
-   (`PhodWeb.SessionLive.Show`, chat/file-tree/editor), session entry form
-   (`PhodWeb.SessionEntryLive`), join flow over a real Plug request
+   (`PhodWeb.SessionLive.Show`, chat/file-tree/editor) at
+   `/sessions/:owner/:tree`, hardcoded-session entry redirect
+   (`PhodWeb.SessionEntryController`), join flow over a real Plug request
    (`PhodWeb.SessionJoinController`) for the per-browser display name,
    `PhodWeb.Presence` roster sharing the session's PubSub topic, transcript
    driven incrementally by `Phod.Session`'s existing broadcasts; done and

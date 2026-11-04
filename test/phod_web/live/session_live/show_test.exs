@@ -6,7 +6,8 @@ defmodule PhodWeb.SessionLive.ShowTest do
   setup {Phod.Tool.TestHelpers, :setup_worktree}
 
   setup do
-    %{id: "show-#{System.unique_integer([:positive])}"}
+    n = System.unique_integer([:positive])
+    %{owner: "owner-#{n}", tree: "tree-#{n}", id: "owner-#{n}/tree-#{n}"}
   end
 
   defp with_identity(conn, name \\ "Ada") do
@@ -25,24 +26,36 @@ defmodule PhodWeb.SessionLive.ShowTest do
     end
   end
 
-  test "renders a not-found view for a session that hasn't been started", %{conn: conn, id: id} do
-    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{id}")
+  test "renders a not-found view for a session that hasn't been started", %{
+    conn: conn,
+    owner: owner,
+    tree: tree
+  } do
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
     assert has_element?(view, "[data-role=not-found]")
   end
 
   test "renders a join prompt when the browser has no display name yet", %{
     conn: conn,
     id: id,
+    owner: owner,
+    tree: tree,
     root: root
   } do
     Phod.Session.ensure_started(id, root)
-    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{owner}/#{tree}")
     assert has_element?(view, "[data-role=join-form]")
   end
 
-  test "renders the three-pane view once joined", %{conn: conn, id: id, root: root} do
+  test "renders the three-pane view once joined", %{
+    conn: conn,
+    id: id,
+    owner: owner,
+    tree: tree,
+    root: root
+  } do
     Phod.Session.ensure_started(id, root)
-    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{id}")
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
 
     assert has_element?(view, "[data-role=session-header]")
     assert has_element?(view, "[data-role=chat]")
@@ -53,6 +66,8 @@ defmodule PhodWeb.SessionLive.ShowTest do
   test "sending a message drives a stubbed LLM round trip and updates the transcript", %{
     conn: conn,
     id: id,
+    owner: owner,
+    tree: tree,
     root: root
   } do
     Req.Test.expect(Phod.Session.LlmStub, text_response("hello!"))
@@ -60,7 +75,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
     pid = start_and_allow(id, root)
     Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:#{id}")
 
-    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{id}")
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
 
     view
     |> form("#message-form", message: %{text: "hi"})
@@ -75,12 +90,14 @@ defmodule PhodWeb.SessionLive.ShowTest do
   test "expanding a directory in the file tree lists its contents", %{
     conn: conn,
     id: id,
+    owner: owner,
+    tree: tree,
     root: root
   } do
     Phod.Tool.TestHelpers.write(root, "lib/foo.ex", "hi")
     Phod.Session.ensure_started(id, root)
 
-    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{id}")
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
 
     refute render(view) =~ "foo.ex"
 
@@ -89,7 +106,13 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert render(view) =~ "foo.ex"
   end
 
-  test "clicking a tool-result path opens the editor pane", %{conn: conn, id: id, root: root} do
+  test "clicking a tool-result path opens the editor pane", %{
+    conn: conn,
+    id: id,
+    owner: owner,
+    tree: tree,
+    root: root
+  } do
     Phod.Tool.TestHelpers.write(root, "new.txt", "hello")
 
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
@@ -111,7 +134,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
     pid = start_and_allow(id, root)
     Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:#{id}")
 
-    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{id}")
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
 
     view |> form("#message-form", message: %{text: "read new.txt"}) |> render_submit()
     Req.Test.allow(Phod.Session.LlmStub, self(), pid)
@@ -132,15 +155,17 @@ defmodule PhodWeb.SessionLive.ShowTest do
   test "a second connection joining updates the first view's presence roster", %{
     conn: conn,
     id: id,
+    owner: owner,
+    tree: tree,
     root: root
   } do
     Phod.Session.ensure_started(id, root)
 
-    {:ok, view1, _html} = live(with_identity(conn, "Ada"), ~p"/sessions/#{id}")
+    {:ok, view1, _html} = live(with_identity(conn, "Ada"), ~p"/sessions/#{owner}/#{tree}")
     Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:#{id}")
 
     conn2 = with_identity(Phoenix.ConnTest.build_conn(), "Grace")
-    {:ok, _view2, _html} = live(conn2, ~p"/sessions/#{id}")
+    {:ok, _view2, _html} = live(conn2, ~p"/sessions/#{owner}/#{tree}")
 
     assert_receive %{event: "presence_diff"}, 1000
     assert render(view1) =~ "Grace"

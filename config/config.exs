@@ -9,7 +9,8 @@ import Config
 
 config :phod,
   ecto_repos: [Phod.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  worktree_base: "/home/mdg/phod/tree"
 
 # Configure the endpoint
 config :phod, PhodWeb.Endpoint,

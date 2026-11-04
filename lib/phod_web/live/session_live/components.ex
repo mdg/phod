@@ -54,6 +54,7 @@ defmodule PhodWeb.SessionLive.Components do
   # -- Join / not-found ---------------------------------------------------
 
   attr :id, :string, required: true
+  attr :join_path, :string, required: true
 
   def join_form(assigns) do
     ~H"""
@@ -61,7 +62,7 @@ defmodule PhodWeb.SessionLive.Components do
       <h1 class="text-2xl font-semibold">Join "{@id}"</h1>
       <p class="text-sm opacity-70">Enter your name to join this session.</p>
 
-      <form method="post" action={~p"/sessions/#{@id}/join"} class="space-y-4" id="join-form">
+      <form method="post" action={@join_path} class="space-y-4" id="join-form">
         <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
         <.input
           type="text"

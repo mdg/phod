@@ -10,14 +10,14 @@ defmodule PhodWeb.SessionJoinController do
 
   use PhodWeb, :controller
 
-  def create(conn, %{"id" => id} = params) do
+  def create(conn, %{"owner" => owner, "tree" => tree} = params) do
     display_name =
       params
       |> Map.get("name", "")
       |> String.trim()
       |> case do
         "" -> "Anonymous"
-        name -> name
+        display_name -> display_name
       end
 
     client_id = get_session(conn, :client_id) || Ecto.UUID.generate()
@@ -25,6 +25,6 @@ defmodule PhodWeb.SessionJoinController do
     conn
     |> put_session(:display_name, display_name)
     |> put_session(:client_id, client_id)
-    |> redirect(to: ~p"/sessions/#{id}")
+    |> redirect(to: ~p"/sessions/#{owner}/#{tree}")
   end
 end

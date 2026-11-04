@@ -46,6 +46,15 @@ defmodule Phod.Session do
   # Public API
 
   @doc """
+  The on-disk worktree path for a session id (`"<owner>/<name>"`), rooted
+  under the configured `:worktree_base` (e.g. `~/phod/tree/`).
+  """
+  @spec worktree_root(String.t()) :: String.t()
+  def worktree_root(id) do
+    Path.join(Application.fetch_env!(:phod, :worktree_base), id)
+  end
+
+  @doc """
   Starts a session for `worktree_root` under `id` if one isn't already
   running, otherwise returns the existing process. Idempotent.
   """

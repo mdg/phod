@@ -12,7 +12,7 @@ defmodule Phod.Tool.ApplyDiff do
   @hunk_header ~r/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/
 
   @impl Tool.B
-  def name, do: :apply_diff
+  def name, do: "apply_diff"
 
   @impl Tool.B
   def description,

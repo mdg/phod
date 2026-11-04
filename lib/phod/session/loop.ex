@@ -62,14 +62,12 @@ defmodule Phod.Session.Loop do
     name = Map.get(block, "name")
     input = Map.get(block, "input", %{})
 
-    case name && Phod.Tool.fetch_name(name) do
-      {:ok, tool_name} ->
-        result = Phod.Tool.run(tool_name, root, input)
-        record_edit(tool_name, result, on_event)
-        tool_result_block(id, result)
-
-      _ ->
-        tool_result_block(id, {:error, "unknown tool: #{inspect(name)}"})
+    if name do
+      result = Phod.Tool.run(name, root, input)
+      record_edit(name, result, on_event)
+      tool_result_block(id, result)
+    else
+      tool_result_block(id, {:error, "unknown tool: #{inspect(name)}"})
     end
   end
 
@@ -81,7 +79,7 @@ defmodule Phod.Session.Loop do
     %{"type" => "tool_result", "tool_use_id" => id, "content" => reason, "is_error" => true}
   end
 
-  defp record_edit(:apply_diff, {:ok, payload}, on_event) do
+  defp record_edit("apply_diff", {:ok, payload}, on_event) do
     on_event.(
       {:edit_recorded,
        %{

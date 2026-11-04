@@ -22,7 +22,7 @@ defmodule Phod.Tool do
   @spec specs() ::
           [
             %{
-              required(:name) => atom(),
+              required(:name) => String.t(),
               required(:description) => String.t(),
               required(:input_schema) => map()
             }
@@ -40,11 +40,11 @@ defmodule Phod.Tool do
   @spec anthropic_tools() :: [map()]
   def anthropic_tools do
     for %{name: name, description: description, input_schema: schema} <- specs() do
-      %{"name" => Atom.to_string(name), "description" => description, "input_schema" => schema}
+      %{"name" => name, "description" => description, "input_schema" => schema}
     end
   end
 
-  @spec run(atom(), String.t(), map()) :: __MODULE__.B.result()
+  @spec run(String.t(), String.t(), map()) :: __MODULE__.B.result()
   def run(name, root, input) do
     case Map.fetch(@names, name) do
       {:ok, tool} ->

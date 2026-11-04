@@ -18,7 +18,7 @@ defmodule Phod.Tool.B do
 
   @type result :: {:ok, term()} | {:error, String.t()}
 
-  @callback name() :: atom()
+  @callback name() :: String.t()
   @callback description() :: String.t()
   @callback tool_fields() :: [atom()]
   @callback run(input :: Tool.Input.t()) :: result()

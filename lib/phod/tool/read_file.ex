@@ -10,7 +10,7 @@ defmodule Phod.Tool.ReadFile do
   @max_lines 2_000
 
   @impl Tool.B
-  def name, do: :read_file
+  def name, do: "read_file"
 
   @impl Tool.B
   def description,

@@ -12,7 +12,7 @@ defmodule Phod.Tool.Grep do
   @max_results 50
 
   @impl Tool.B
-  def name, do: :grep
+  def name, do: "grep"
 
   @impl Tool.B
   def description,

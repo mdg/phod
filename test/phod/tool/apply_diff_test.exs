@@ -10,7 +10,7 @@ defmodule Phod.Tool.ApplyDiffTest do
     write(root, "README.md", "hello\nworld\n")
 
     assert {:ok, %{applied_hunks: 1, created?: false}} =
-             Tool.run(:apply_diff, root, %{
+             Tool.run("apply_diff", root, %{
                "path" => "README.md",
                "diff" => "@@ -1,1 +1,2 @@\n hello\n+there\n"
              })
@@ -22,7 +22,7 @@ defmodule Phod.Tool.ApplyDiffTest do
     write(root, "nums.txt", "one\ntwo\nthree\nfour\nfive\n")
 
     {:ok, %{applied_hunks: 2}} =
-      Tool.run(:apply_diff, root, %{
+      Tool.run("apply_diff", root, %{
         "path" => "nums.txt",
         "diff" => "@@ -1,2 +1,2 @@\n one\n-two\n+TWO\n@@ -4,2 +4,2 @@\n four\n-five\n+FIVE\n"
       })
@@ -32,7 +32,7 @@ defmodule Phod.Tool.ApplyDiffTest do
 
   test "creates a new file with a /dev/null diff", %{root: root} do
     {:ok, %{created?: true}} =
-      Tool.run(:apply_diff, root, %{
+      Tool.run("apply_diff", root, %{
         "path" => "new/deep/file.txt",
         "diff" => "@@ -0,0 +1,2 @@\n+line one\n+line two"
       })
@@ -44,7 +44,7 @@ defmodule Phod.Tool.ApplyDiffTest do
     write(root, "README.md", "hello\nworld\n")
 
     {:error, msg} =
-      Tool.run(:apply_diff, root, %{
+      Tool.run("apply_diff", root, %{
         "path" => "README.md",
         "diff" => "@@ -1,1 +1,1 @@\n-hello\n+HELLO\n@@ -2,1 +2,1 @@\n-bogus line\n+fixed\n"
       })
@@ -60,7 +60,7 @@ defmodule Phod.Tool.ApplyDiffTest do
 
     # header says line 2 but the block is at line 3: still applies
     {:ok, %{applied_hunks: 1}} =
-      Tool.run(:apply_diff, root, %{
+      Tool.run("apply_diff", root, %{
         "path" => "nums.txt",
         "diff" => "@@ -2,2 +2,2 @@\n three\n-four\n+FOUR\n"
       })
@@ -70,7 +70,7 @@ defmodule Phod.Tool.ApplyDiffTest do
 
   test "errors when the file does not exist and hunks expect content", %{root: root} do
     {:error, msg} =
-      Tool.run(:apply_diff, root, %{
+      Tool.run("apply_diff", root, %{
         "path" => "missing.md",
         "diff" => "@@ -1,1 +1,1 @@\n-hello\n+HI\n"
       })
@@ -84,7 +84,7 @@ defmodule Phod.Tool.ApplyDiffTest do
       "diff" => "   "
     }
 
-    assert {:error, msg} = Tool.run(:apply_diff, root, params)
+    assert {:error, msg} = Tool.run("apply_diff", root, params)
     assert msg == "cannot apply empty diff"
   end
 
@@ -92,14 +92,14 @@ defmodule Phod.Tool.ApplyDiffTest do
     write(root, "README.md", "hello\n")
 
     {:error, msg} =
-      Tool.run(:apply_diff, root, %{"path" => "README.md", "diff" => "not a diff"})
+      Tool.run("apply_diff", root, %{"path" => "README.md", "diff" => "not a diff"})
 
     assert msg =~ "no unified diff hunks"
   end
 
   test "rejects escaping worktree paths", %{root: root} do
     {:error, msg} =
-      Tool.run(:apply_diff, root, %{
+      Tool.run("apply_diff", root, %{
         "path" => "../evil.md",
         "diff" => "@@ -0,0 +1,1 @@\n+evil\n"
       })

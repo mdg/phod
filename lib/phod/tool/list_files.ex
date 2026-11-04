@@ -8,7 +8,7 @@ defmodule Phod.Tool.ListFiles do
   @behaviour Tool.B
 
   @impl Tool.B
-  def name, do: :list_files
+  def name, do: "list_files"
 
   @impl Tool.B
   def description,

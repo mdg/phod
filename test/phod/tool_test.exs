@@ -6,7 +6,7 @@ defmodule Phod.ToolTest do
   test "specs/0 includes an input_schema for every tool" do
     for spec <- Tool.specs() do
       assert %{name: name, description: description, input_schema: schema} = spec
-      assert is_atom(name)
+      assert is_binary(name)
       assert is_binary(description)
       assert %{"type" => "object", "properties" => _, "required" => required} = schema
       assert is_list(required)
@@ -36,13 +36,8 @@ defmodule Phod.ToolTest do
     assert Enum.sort(Map.keys(schema["properties"])) == ["diff", "path"]
   end
 
-  test "fetch_name/1 round-trips all known tool names" do
-    for name <- [:list_files, :read_file, :grep, :apply_diff] do
-      assert Tool.fetch_name(Atom.to_string(name)) == {:ok, name}
-    end
-  end
-
-  test "fetch_name/1 returns :error for unknown names" do
-    assert Tool.fetch_name("delete_everything") == :error
+  test "run/3 returns an error for unknown tool names" do
+    assert {:error, msg} = Tool.run("delete_everything", ".", %{})
+    assert msg =~ "unknown tool"
   end
 end

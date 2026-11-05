@@ -15,7 +15,8 @@ defmodule Phod.Session.Llm do
   Every path you pass to a tool is relative to the \
   worktree root; you cannot read or write anything outside it. Investigate \
   with list_files, read_file, and grep before editing, and verify \
-  patch results by following up with read_file.\
+  patch results by following up with read_file. \
+  Do not write tests or try to execute the generated code. \
   """
 
   @type block :: map()

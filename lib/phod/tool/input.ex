@@ -11,7 +11,8 @@ defmodule Phod.Tool.Input do
           patterns: [String.t()],
           full_path: String.t() | nil,
           root: String.t(),
-          allow_new_path?: boolean()
+          allow_new_path?: boolean(),
+          all: boolean()
         }
 
   defstruct diff: nil,
@@ -19,12 +20,13 @@ defmodule Phod.Tool.Input do
             patterns: [],
             full_path: nil,
             root: ".",
-            allow_new_path?: false
+            allow_new_path?: false,
+            all: false
 
   def from_map(map, root) do
     fields =
       map
-      |> Map.take(["diff", "path", "patterns"])
+      |> Map.take(["diff", "path", "patterns", "all"])
       |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
       |> Map.put(:root, root)
 
@@ -53,6 +55,14 @@ defmodule Phod.Tool.Input do
 
   def validate(:allow_new_path, %__MODULE__{} = input) do
     {:ok, %{input | allow_new_path?: true}}
+  end
+
+  def validate(:all, %__MODULE__{all: all} = input) when is_boolean(all) do
+    {:ok, input}
+  end
+
+  def validate(:all, %__MODULE__{}) do
+    {:error, "invalid all"}
   end
 
   def validate(:path, %__MODULE__{path: path}) when not is_binary(path) do

@@ -139,4 +139,38 @@ defmodule Phod.Tool.ListFilesTest do
     assert {:error, msg} = Tool.run("list_files", root, %{"path" => "nope"})
     assert msg == "invalid path"
   end
+
+  describe "all parameter" do
+    test "defaults to false, hiding dotfiles", %{root: root} do
+      write(root, ".env", "secret\n")
+      write(root, "README.md", "x\n")
+
+      assert {:ok, %{entries: entries}} = Tool.run("list_files", root, %{})
+
+      assert Enum.map(entries, & &1.name) == ["README.md"]
+    end
+
+    test "passes -A to ls and surfaces dotfiles when true", %{root: root} do
+      write(root, ".env", "secret\n")
+      write(root, "README.md", "x\n")
+
+      assert {:ok, %{entries: entries}} = Tool.run("list_files", root, %{"all" => true})
+
+      assert Enum.map(entries, & &1.name) |> Enum.sort() == [".env", "README.md"]
+    end
+
+    test "still filters out .git, ., and .. even when all is true", %{root: root} do
+      write(root, ".git", "not a real git dir, just a file\n")
+      write(root, "README.md", "x\n")
+
+      assert {:ok, %{entries: entries}} = Tool.run("list_files", root, %{"all" => true})
+
+      assert Enum.map(entries, & &1.name) == ["README.md"]
+    end
+
+    test "errors when all is not a boolean", %{root: root} do
+      assert {:error, msg} = Tool.run("list_files", root, %{"all" => "true"})
+      assert msg == "invalid all"
+    end
+  end
 end

@@ -15,14 +15,15 @@ defmodule Phod.Tool.ListFiles do
     do: """
     List the contents of a directory in the worktree. Returns a list of \
     entries, each with `name`, `type` (`"file"`, `"dir"`, or `"symlink"`), \
-    `num_bytes`, `mime_type`, and `charset`. Use this to explore the project \
-    structure. Paths are relative to the worktree root; defaults to the \
-    root. Does not recurse — call it again on subdirectories.\
+    `num_bytes`, `mime_type`, and `charset`. Set `all` to `true` to also \
+    include hidden (dot) files. Use this to explore the project structure. \
+    Paths are relative to the worktree root; defaults to the root. \
+    Does not recurse — call it again on subdirectories.\
     """
 
   @impl Tool.B
   def tool_fields() do
-    [:path]
+    [:path, :all]
   end
 
   @impl Tool.B
@@ -34,6 +35,10 @@ defmodule Phod.Tool.ListFiles do
           "type" => "string",
           "description" =>
             "Directory path relative to the worktree root. Defaults to the root (\".\") when omitted."
+        },
+        "all" => %{
+          "type" => "boolean",
+          "description" => "Include hidden (dot) files. Defaults to false."
         }
       },
       "required" => []
@@ -42,7 +47,16 @@ defmodule Phod.Tool.ListFiles do
 
   @impl Tool.B
   def run(%Tool.Input{} = input) do
-    case System.cmd("ls", ["-lF", input.full_path], stderr_to_stdout: true) do
+    args =
+      if input.all do
+        ["-A", input.full_path]
+      else
+        [input.full_path]
+      end
+
+    args = ["-lF" | args]
+
+    case System.cmd("ls", args, stderr_to_stdout: true) do
       {output, 0} ->
         entries =
           output

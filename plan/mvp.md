@@ -29,15 +29,16 @@ relative to the session worktree root, and works only inside it.
 Lists files and directories at a given path.
 
 - **Description (for the LLM):** "List the contents of a directory in the
-  worktree by running `ls -lF`. Returns the raw `ls -lF` output (permissions,
-  owner, size, modified time, and name), with a trailing `/` on directory
-  names and `*` on executable files. If `path` names a file instead of a
-  directory, shows that file's own listing line. Use this to explore the
-  project structure. Paths are relative to the worktree root; defaults to the
-  root. Does not recurse — call it again on subdirectories."
-- Input: `{ path?: string }`
-- Output: `{ path, output }`, where `output` is the raw `ls -lF` text, or an
-  error if the path does not exist.
+  worktree. Returns a list of entries, each with `name`, `type` (`"file"`,
+  `"dir"`, or `"symlink"`), `num_bytes`, `mime_type`, and `charset`. Set
+  `all` to `true` to also include hidden (dot) files. Use this to explore
+  the project structure. Paths are relative to the worktree root; defaults
+  to the root. Does not recurse — call it again on subdirectories."
+- Input: `{ path?: string, all?: boolean }`
+- Output: `{ path, entries }`, where `entries` is a list of
+  `{ name, type, num_bytes, mime_type, charset }`, backed by `ls -lF`
+  (`-A` as well when `all` is true) and `file -i`; or an error if the path
+  does not exist. `.git`, `.`, and `..` are always filtered out.
 
 ### `read_file`
 

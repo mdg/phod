@@ -3,20 +3,22 @@ defmodule PhodWeb.SessionLive.FileTree do
   Pure expand-on-click state for the file explorer pane, backed by the same
   `Phod.Tool.run("list_files", ...)` call the agent itself uses — no
   separate recursive listing tool, just one non-recursive call per expanded
-  directory.
-
-  The tool returns raw `ls -lF` output (so the LLM sees exactly what a
-  human running `ls` would); this module parses that text back into
-  `name`/`type` pairs for rendering. The parse takes the last
-  whitespace-separated field as the name, so it mishandles filenames that
-  themselves contain spaces — an accepted limitation of reusing `ls -lF`'s
-  output as the data format.
+  directory. The tool itself (`Phod.Tool.ListFiles`) does all the `ls -lF`
+  parsing and mime-type lookup; this module just caches results per
+  expanded path.
 
   Kept free of any LiveView/Phoenix dependency so it's unit-testable on its
   own.
   """
 
-  @type entries :: {:ok, [%{name: String.t(), type: String.t()}]} | {:error, String.t()}
+  @type entry :: %{
+          name: String.t(),
+          type: String.t(),
+          num_bytes: non_neg_integer(),
+          mime_type: String.t(),
+          charset: String.t() | nil
+        }
+  @type entries :: {:ok, [entry()]} | {:error, String.t()}
   @type t :: %__MODULE__{expanded: MapSet.t(String.t()), entries: %{String.t() => entries()}}
 
   defstruct expanded: MapSet.new(), entries: %{}
@@ -57,25 +59,8 @@ defmodule PhodWeb.SessionLive.FileTree do
 
   defp fetch(root, path) do
     case Phod.Tool.run("list_files", root, %{"path" => path}) do
-      {:ok, %{output: output}} -> {:ok, parse_ls(output)}
+      {:ok, %{entries: entries}} -> {:ok, entries}
       {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp parse_ls(output) do
-    output
-    |> String.split("\n", trim: true)
-    |> Enum.reject(&String.starts_with?(&1, "total "))
-    |> Enum.map(&parse_line/1)
-  end
-
-  defp parse_line(line) do
-    name_field = line |> String.split(~r/\s+/, trim: true) |> List.last()
-
-    if String.ends_with?(name_field, "/") do
-      %{name: String.slice(name_field, 0..-2//1), type: "dir"}
-    else
-      %{name: name_field, type: "file"}
     end
   end
 end

@@ -73,8 +73,8 @@ defmodule Phod.Session.LoopTest do
 
     assert %{"type" => "tool_result", "tool_use_id" => "tu_1"} = tool_result
     refute Map.has_key?(tool_result, "is_error")
-    assert %{"output" => output} = Jason.decode!(tool_result["content"])
-    assert output =~ "a.ex"
+    assert %{"entries" => entries} = Jason.decode!(tool_result["content"])
+    assert [%{"name" => "a.ex"}] = entries
   end
 
   test "a successful apply_diff records an edit and writes the file", %{root: root} do

@@ -13,7 +13,12 @@ defmodule PhodWeb.SessionLive.FileTreeTest do
 
     assert MapSet.member?(tree.expanded, ".")
     assert {:ok, entries} = tree.entries["."]
-    assert Enum.sort(entries) == [%{name: "a.txt", type: "file"}, %{name: "lib", type: "dir"}]
+
+    assert [a_entry, lib_entry] = Enum.sort_by(entries, & &1.name)
+    assert %{name: "a.txt", type: "file", num_bytes: 2} = a_entry
+    assert is_binary(a_entry.mime_type)
+    assert %{name: "lib", type: "dir"} = lib_entry
+    assert is_binary(lib_entry.mime_type)
   end
 
   test "toggle/3 expands a collapsed directory, fetching its listing", %{root: root} do
@@ -22,7 +27,11 @@ defmodule PhodWeb.SessionLive.FileTreeTest do
     tree = FileTree.new(root) |> FileTree.toggle(root, "lib")
 
     assert MapSet.member?(tree.expanded, "lib")
-    assert {:ok, [%{name: "b.ex", type: "file"}]} = tree.entries["lib"]
+
+    assert {:ok, [%{name: "b.ex", type: "file", num_bytes: 2, mime_type: mime}]} =
+             tree.entries["lib"]
+
+    assert is_binary(mime)
   end
 
   test "toggle/3 collapses an already-expanded directory", %{root: root} do
@@ -45,6 +54,6 @@ defmodule PhodWeb.SessionLive.FileTreeTest do
     Phod.Tool.TestHelpers.write(root, "new.txt", "hi")
     tree = FileTree.refresh_expanded(tree, root)
 
-    assert {:ok, [%{name: "new.txt", type: "file"}]} = tree.entries["."]
+    assert {:ok, [%{name: "new.txt", type: "file", num_bytes: 2}]} = tree.entries["."]
   end
 end

@@ -178,7 +178,23 @@ defmodule PhodWeb.SessionLive.Components do
 
   def tool_result_body(%{name: "list_files"} = assigns) do
     ~H"""
-    <pre class="whitespace-pre-wrap">{@payload["output"]}</pre>
+    <ul class="space-y-0.5">
+      <li :for={entry <- @payload["entries"]}>
+        <%= if entry["type"] == "dir" do %>
+          <span>{entry["name"]}/</span>
+        <% else %>
+          <button
+            type="button"
+            phx-click="open_file"
+            phx-value-path={join_path(@payload["path"], entry["name"])}
+            class="hover:underline"
+          >
+            {entry["name"]}
+          </button>
+        <% end %>
+        <span class="opacity-50 text-xs">{entry["mime_type"]}</span>
+      </li>
+    </ul>
     """
   end
 

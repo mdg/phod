@@ -7,6 +7,7 @@ defmodule Phod.Tool.Input do
 
   @type t :: %{
           diff: String.t() | nil,
+          script: String.t() | nil,
           path: String.t(),
           patterns: [String.t()],
           full_path: String.t() | nil,
@@ -16,6 +17,7 @@ defmodule Phod.Tool.Input do
         }
 
   defstruct diff: nil,
+            script: nil,
             path: ".",
             patterns: [],
             full_path: nil,
@@ -26,7 +28,7 @@ defmodule Phod.Tool.Input do
   def from_map(map, root) do
     fields =
       map
-      |> Map.take(["diff", "path", "patterns", "all"])
+      |> Map.take(["diff", "script", "path", "patterns", "all"])
       |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
       |> Map.put(:root, root)
 
@@ -50,6 +52,17 @@ defmodule Phod.Tool.Input do
     case String.trim(input.diff) do
       "" -> {:error, "cannot apply empty diff"}
       diff -> {:ok, %{input | diff: diff}}
+    end
+  end
+
+  def validate(:script, %__MODULE__{script: script}) when not is_binary(script) do
+    {:error, "invalid script"}
+  end
+
+  def validate(:script, %__MODULE__{} = input) do
+    case String.trim(input.script) do
+      "" -> {:error, "cannot run empty script"}
+      script -> {:ok, %{input | script: script}}
     end
   end
 

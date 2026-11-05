@@ -18,6 +18,10 @@ The agent is strictly sandboxed to the session's worktree. All tool paths are
 resolved and validated against the worktree root before execution; any attempt
 to escape the root (via `..`, symlinks, or absolute paths) is rejected. The
 repo directory is outside the sandbox and never read or written by tools.
+`elixir_script` is the one exception: it has no `path` input, and its
+containment is instead enforced by running inside a `bwrap` OS sandbox
+(worktree mounted read-write at its own real path, everything else read-only,
+no network).
 
 ## 1. Agent Tools
 
@@ -81,6 +85,29 @@ The primary editing tool: applies a unified diff to a file.
   description ("hunk #3: context mismatch at line 42") so the LLM can re-read
   the file and retry.
 
+### `elixir_script`
+
+Runs an ad hoc Elixir script, sandboxed with `bwrap`.
+
+- **Description (for the LLM):** "Run an Elixir script against the
+  worktree, sandboxed with `bwrap`: the worktree is mounted read-write at
+  its real path (the script's working directory), the rest of the
+  filesystem is read-only, and there is no network access. Only the
+  Elixir/Erlang standard library is available - there is no network access
+  to fetch dependencies, so `Mix.install/2` will not work. The script runs
+  with a hard 10-second timeout and output beyond 20,000 bytes per stream
+  is truncated. Use this for anything list_files/read_file/grep/apply_diff
+  can't express: computations, inspecting structured data, quick
+  experiments, or multi-file changes in one shot. Stdout and stderr are
+  returned along with the exit status whether the script exits cleanly or
+  raises - a non-zero exit is not itself a tool error, it's a normal
+  result for you to inspect."
+- Input: `{ script: string }`
+- Output: `{ stdout, stderr, exit_status }` for any run that actually
+  executed, success or a raised exception alike; a tool error only when
+  the run could not be attempted at all (toolchain resolution failure,
+  `bwrap` failing to start, or the hard timeout firing).
+
 ## 2. Agent & Sessions
 
 - **One session per worktree.** A session is created by pointing it at a
@@ -97,7 +124,7 @@ The primary editing tool: applies a unified diff to a file.
 - Tool-calling loop: the model proposes tool calls, the GenServer executes them
   (sandboxed), and results are fed back into the conversation until the model
   produces a final answer.
-- The system prompt instructs the model on the four tools above and the rule
+- The system prompt instructs the model on the five tools above and the rule
   that all files are relative to the worktree root.
 - All `apply_diff` edits are recorded per-file so the UI can highlight what the
   agent changed.
@@ -211,7 +238,8 @@ Presence is responsible for *who* is in the session.
 Three-pane layout:
 
 1. **Chat pane** — transcript, user input box, streaming agent output, collapsible
-   tool call blocks (`list_files`, `read_file`, `grep`, `apply_diff`) with results.
+   tool call blocks (`list_files`, `read_file`, `grep`, `apply_diff`,
+   `elixir_script`) with results.
 2. **File explorer** — live-updating tree of the worktree root (uses the same
    backend as the `list_files` tool).
 3. **Editor pane** — view (and later edit) a selected file with line numbers;

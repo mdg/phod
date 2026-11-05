@@ -58,6 +58,6 @@ defmodule Phod.Session.LlmTest do
 
     # No stub registered at all: a real request attempt would raise/fail
     # with "no plug/stub" rather than returning our error tuple.
-    assert Llm.complete(@messages) == {:error, "OPENCODE_API_KEY is not set"}
+    assert Llm.complete(@messages) == {:error, "LLM_API_KEY is not set"}
   end
 end

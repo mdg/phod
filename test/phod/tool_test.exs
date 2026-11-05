@@ -13,12 +13,19 @@ defmodule Phod.ToolTest do
     end
   end
 
-  test "anthropic_tools/0 builds a well-formed tools array for all 4 tools" do
+  test "anthropic_tools/0 builds a well-formed tools array for all 5 tools" do
     tools = Tool.anthropic_tools()
-    assert length(tools) == 4
+    assert length(tools) == 5
 
     names = Enum.map(tools, & &1["name"])
-    assert Enum.sort(names) == ["apply_diff", "grep", "list_files", "read_file"]
+
+    assert Enum.sort(names) == [
+             "apply_diff",
+             "elixir_script",
+             "grep",
+             "list_files",
+             "read_file"
+           ]
 
     for tool <- tools do
       assert %{"name" => name, "description" => description, "input_schema" => schema} = tool

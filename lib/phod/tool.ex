@@ -11,7 +11,8 @@ defmodule Phod.Tool do
     __MODULE__.ApplyDiff,
     __MODULE__.Grep,
     __MODULE__.ReadFile,
-    __MODULE__.ListFiles
+    __MODULE__.ListFiles,
+    __MODULE__.ElixirScript
   ]
 
   @names Map.new(@tools, fn tool -> {tool.name(), tool} end)

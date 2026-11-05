@@ -47,17 +47,10 @@ defmodule Phod.Tool.ListFiles do
 
   @impl Tool.B
   def run(%Tool.Input{} = input) do
-    args =
-      if input.all do
-        ["-A", input.full_path]
-      else
-        [input.full_path]
-      end
+    args = ["-lF"] ++ if(input.all, do: ["-A"], else: []) ++ [input.full_path]
 
-    args = ["-lF" | args]
-
-    case System.cmd("ls", args, stderr_to_stdout: true) do
-      {output, 0} ->
+    case Rambo.run("ls", args, log: false) do
+      {:ok, %Rambo{out: output}} ->
         entries =
           output
           |> parse_ls()
@@ -65,8 +58,11 @@ defmodule Phod.Tool.ListFiles do
 
         {:ok, %{path: input.path, entries: entries}}
 
-      {output, status} ->
-        {:error, "could not list #{inspect(input.path)}: #{status} #{String.trim(output)}"}
+      {:error, %Rambo{status: status, out: out, err: err}} ->
+        {:error, "could not list #{inspect(input.path)}: #{status} #{String.trim(out <> err)}"}
+
+      {:error, reason} ->
+        {:error, "could not list #{inspect(input.path)}: #{reason}"}
     end
   end
 
@@ -149,21 +145,15 @@ defmodule Phod.Tool.ListFiles do
     end)
   end
 
-  # `System.cmd/3` has no option to pipe data to a command's stdin, so the
-  # only dependency-free way to feed `file -i -f -` the file list on stdin
-  # is a shell redirect from a throwaway temp file.
+  # `System.cmd/3` has no option to pipe data to a command's stdin;
+  # `Rambo.run/3`'s `:in` option does, so the file list goes straight to
+  # `file -i -f -`'s stdin with no temp file involved.
   defp fetch_mime_types(entries, dir_abs) do
     input = entries |> Enum.map(&Path.join(dir_abs, &1.name)) |> Enum.join("\n")
-    tmp = Path.join(System.tmp_dir!(), "phod-file-mime-#{System.unique_integer([:positive])}")
-    File.write!(tmp, input <> "\n")
 
-    try do
-      case System.cmd("sh", ["-c", "file -i -f - < " <> tmp], stderr_to_stdout: true) do
-        {output, 0} -> parse_mime_output(output, dir_abs)
-        _ -> %{}
-      end
-    after
-      File.rm(tmp)
+    case Rambo.run("file", ["-i", "-f", "-"], in: input <> "\n", log: false) do
+      {:ok, %Rambo{out: output}} -> parse_mime_output(output, dir_abs)
+      _ -> %{}
     end
   end
 

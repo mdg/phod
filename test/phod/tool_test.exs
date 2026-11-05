@@ -13,9 +13,9 @@ defmodule Phod.ToolTest do
     end
   end
 
-  test "anthropic_tools/0 builds a well-formed tools array for all 5 tools" do
+  test "anthropic_tools/0 builds a well-formed tools array for all 6 tools" do
     tools = Tool.anthropic_tools()
-    assert length(tools) == 5
+    assert length(tools) == 6
 
     names = Enum.map(tools, & &1["name"])
 
@@ -24,6 +24,7 @@ defmodule Phod.ToolTest do
              "elixir_script",
              "grep",
              "list_files",
+             "patch",
              "read_file"
            ]
 

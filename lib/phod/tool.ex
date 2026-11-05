@@ -12,6 +12,7 @@ defmodule Phod.Tool do
     __MODULE__.Grep,
     __MODULE__.ReadFile,
     __MODULE__.ListFiles,
+    __MODULE__.Patch,
     __MODULE__.ElixirScript
   ]
 

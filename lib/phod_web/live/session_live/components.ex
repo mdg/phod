@@ -99,8 +99,8 @@ defmodule PhodWeb.SessionLive.Components do
 
   def chat_pane(assigns) do
     ~H"""
-    <div class="flex flex-col h-full" data-role="chat">
-      <div class="flex-1 overflow-auto space-y-2 p-2" id="transcript" data-role="transcript">
+    <div class="flex flex-col h-full min-h-0" data-role="chat">
+      <div class="flex-1 min-h-0 overflow-auto space-y-2 p-2" id="transcript" data-role="transcript">
         <div :for={{item, idx} <- Enum.with_index(@transcript)} id={"transcript-item-#{idx}"}>
           <.message_block :if={item.kind == :text} item={item} />
           <.tool_call_block :if={item.kind == :tool_call} item={item} />
@@ -176,22 +176,7 @@ defmodule PhodWeb.SessionLive.Components do
 
   def tool_result_body(%{name: "list_files"} = assigns) do
     ~H"""
-    <ul class="space-y-0.5">
-      <li :for={entry <- @payload["entries"]}>
-        <%= if entry["type"] == "dir" do %>
-          <span>{entry["name"]}/</span>
-        <% else %>
-          <button
-            type="button"
-            phx-click="open_file"
-            phx-value-path={join_path(@payload["path"], entry["name"])}
-            class="hover:underline"
-          >
-            {entry["name"]}
-          </button>
-        <% end %>
-      </li>
-    </ul>
+    <pre class="whitespace-pre-wrap">{@payload["output"]}</pre>
     """
   end
 
@@ -269,7 +254,7 @@ defmodule PhodWeb.SessionLive.Components do
   def file_tree_pane(assigns) do
     ~H"""
     <div
-      class="border rounded h-full overflow-auto p-2 text-sm font-mono"
+      class="border rounded h-full min-h-0 overflow-auto p-2 text-sm font-mono"
       id="file-tree"
       data-role="file-tree"
     >
@@ -342,7 +327,7 @@ defmodule PhodWeb.SessionLive.Components do
 
   def editor_pane(assigns) do
     ~H"""
-    <div class="border rounded h-full overflow-auto p-2 text-sm font-mono" data-role="editor">
+    <div class="border rounded h-full min-h-0 overflow-auto p-2 text-sm font-mono" data-role="editor">
       <%= cond do %>
         <% @selected_path == nil -> %>
           <p class="opacity-60 italic p-2">Select a file to view it here.</p>

@@ -99,7 +99,7 @@ defmodule PhodWeb.SessionLive.Show do
       <div class="flex flex-col h-[calc(100vh-4rem)]">
         <Components.session_header id={@id} status={@snapshot.status} presence={@presence} />
 
-        <div class="flex-1 grid grid-cols-[2fr_1fr_1fr] gap-2 p-2 min-h-0">
+        <div class="flex-1 grid grid-cols-[2fr_1fr_1fr] auto-rows-fr gap-2 p-2 min-h-0">
           <Components.chat_pane
             transcript={@transcript}
             form={@form}

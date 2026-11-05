@@ -14,8 +14,8 @@ defmodule Phod.Tool.GrepTest do
       Tool.run("grep", root, %{"patterns" => ["alpha"]})
 
     assert Enum.sort(matches, &(&1.path <= &2.path)) == [
-             %{path: "./src/a.ex", line_number: 1, line: "def alpha do"},
-             %{path: "./src/b.ex", line_number: 2, line: "  alpha()"}
+             %{path: "src/a.ex", line_number: 1, line: "def alpha do"},
+             %{path: "src/b.ex", line_number: 2, line: "  alpha()"}
            ]
   end
 
@@ -27,8 +27,8 @@ defmodule Phod.Tool.GrepTest do
       Tool.run("grep", root, %{"patterns" => ["alpha", "beta"]})
 
     assert Enum.sort(matches, &(&1.path <= &2.path)) == [
-             %{path: "./src/a.ex", line_number: 1, line: "def alpha do"},
-             %{path: "./src/b.ex", line_number: 1, line: "def beta do"}
+             %{path: "src/a.ex", line_number: 1, line: "def alpha do"},
+             %{path: "src/b.ex", line_number: 1, line: "def beta do"}
            ]
   end
 

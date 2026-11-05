@@ -29,12 +29,15 @@ relative to the session worktree root, and works only inside it.
 Lists files and directories at a given path.
 
 - **Description (for the LLM):** "List the contents of a directory in the
-  project. Returns names with a `/` suffix for directories. Use this to explore
-  the project structure. Path is relative to the project root; defaults to the
+  worktree by running `ls -lF`. Returns the raw `ls -lF` output (permissions,
+  owner, size, modified time, and name), with a trailing `/` on directory
+  names and `*` on executable files. If `path` names a file instead of a
+  directory, shows that file's own listing line. Use this to explore the
+  project structure. Paths are relative to the worktree root; defaults to the
   root. Does not recurse — call it again on subdirectories."
 - Input: `{ path?: string }`
-- Output: list of entries (`name`, `type: "file" | "dir"`), or an error if the
-  path does not exist or is not a directory.
+- Output: `{ path, output }`, where `output` is the raw `ls -lF` text, or an
+  error if the path does not exist.
 
 ### `read_file`
 

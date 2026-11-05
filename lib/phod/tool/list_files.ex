@@ -1,8 +1,6 @@
 defmodule Phod.Tool.ListFiles do
   @moduledoc false
 
-  import Rexult
-
   alias Phod.Tool
 
   @behaviour Tool.B
@@ -13,8 +11,11 @@ defmodule Phod.Tool.ListFiles do
   @impl Tool.B
   def description,
     do: """
-    List the contents of a directory in the worktree. Returns names with a `/` \
-    suffix for directories. Use this to explore the project structure. \
+    List the contents of a directory in the worktree by running `ls -lF`. \
+    Returns the raw `ls -lF` output (permissions, owner, size, modified \
+    time, and name), with a trailing `/` on directory names and `*` on \
+    executable files. If `path` names a file instead of a directory, shows \
+    that file's own listing line. Use this to explore the project structure. \
     Paths are relative to the worktree root; defaults to the root. \
     Does not recurse — call it again on subdirectories.\
     """
@@ -41,23 +42,12 @@ defmodule Phod.Tool.ListFiles do
 
   @impl Tool.B
   def run(%Tool.Input{} = input) do
-    File.ls(input.full_path)
-    |> map_ok(fn names ->
-      entries =
-        Enum.sort(names)
-        |> Enum.map(fn name ->
-          full_name = Path.join(input.full_path, name)
-          type = if File.dir?(full_name), do: "dir", else: "file"
-          %{name: name, type: type}
-        end)
+    case System.cmd("ls", ["-lF", input.full_path], stderr_to_stdout: true) do
+      {output, 0} ->
+        {:ok, %{path: input.path, output: output}}
 
-      %{
-        path: input.path,
-        entries: entries
-      }
-    end)
-    |> map_err(fn reason ->
-      "could not list #{inspect(input.path)}: #{Tool.Lib.format_error(reason)}"
-    end)
+      {output, status} ->
+        {:error, "could not list #{inspect(input.path)}: #{status} #{String.trim(output)}"}
+    end
   end
 end

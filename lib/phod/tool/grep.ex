@@ -71,38 +71,37 @@ defmodule Phod.Tool.Grep do
         Logger.error("grep error", err: err)
         {:error, output}
     end
-    |> map_ok(&parse_output(&1, input.path))
+    |> map_ok(&parse_output/1)
     |> map_err(&normalize_rg_error/1)
     |> on_err(fn reason -> Logger.warning("grep failed: " <> reason) end)
   end
 
   # ripgrep's --json output is newline-delimited JSON events; only "match"
   # events carry a result, the rest ("begin"/"end"/"summary") are ignored.
-  # rg runs with cwd set to the subdirectory being searched, so its reported
-  # paths are relative to that subdirectory; prefix them back onto `prefix`
-  # (the subpath from the worktree root) so results stay root-relative.
-  defp parse_output("", _prefix) do
+  # rg runs with cwd set to the worktree root and `input.path` as its search
+  # target, so its reported paths are already root-relative — except when
+  # the target is "." (searching the whole worktree), where rg prefixes
+  # matches with "./" that we strip for a consistent root-relative path.
+  defp parse_output("") do
     %{matches: [], truncated?: false}
   end
 
-  defp parse_output(output, prefix) do
+  defp parse_output(output) do
     matches =
       output
       |> String.split("\n", trim: true)
-      |> Enum.flat_map(&decode_match(&1, prefix))
+      |> Enum.flat_map(&decode_match/1)
       |> Enum.take(@max_results)
 
     %{matches: matches, truncated?: length(matches) == @max_results}
   end
 
-  defp decode_match(line, prefix) do
+  defp decode_match(line) do
     case Jason.decode(line) do
       {:ok, %{"type" => "match", "data" => data}} ->
-        relative = String.trim_leading(data["path"]["text"], "./")
-
         [
           %{
-            path: Path.join(prefix, relative),
+            path: String.trim_leading(data["path"]["text"], "./"),
             line_number: data["line_number"],
             line: String.trim_trailing(data["lines"]["text"], "\n")
           }

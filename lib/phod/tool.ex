@@ -12,6 +12,7 @@ defmodule Phod.Tool do
     __MODULE__.ReadFile,
     __MODULE__.ListFiles,
     __MODULE__.Patch,
+    __MODULE__.Rustc
   ]
 
   @names Map.new(@tools, fn tool -> {tool.name(), tool} end)

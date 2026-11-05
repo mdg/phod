@@ -165,6 +165,11 @@ defmodule PhodWeb.SessionLive.Components do
           class="whitespace-pre-wrap bg-base-200 rounded p-2"
           data-role="tool-call-script"
         >{@item.input["script"]}</pre>
+        <pre
+          :if={@item.name == "patch"}
+          class="whitespace-pre-wrap bg-base-200 rounded p-2 font-mono text-xs"
+          data-role="tool-call-diff"
+        >{@item.input["diff"]}</pre>
         <%= case @item.result do %>
           <% :pending -> %>
             <p class="italic opacity-60">running…</p>

@@ -28,6 +28,8 @@ defmodule Phod.Session do
 
   use GenServer
 
+  require Logger
+
   alias Phod.Session.Loop
 
   defstruct [
@@ -179,6 +181,8 @@ defmodule Phod.Session do
   end
 
   def handle_info({:DOWN, ref, :process, _pid, reason}, %__MODULE__{task_ref: ref} = state) do
+    Logger.error("agent run crashed for session #{state.id}: #{inspect(reason)}")
+
     state = %{
       state
       | status: :idle,

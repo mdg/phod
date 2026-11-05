@@ -54,20 +54,23 @@ defmodule Phod.Tool.Grep do
 
   @impl Tool.B
   def run(%Tool.Input{patterns: patterns} = input) do
-    args = ["--json"] ++ Enum.flat_map(patterns, &["-e", &1]) ++ ["--", "."]
+    args = ["--json"] ++ Enum.flat_map(patterns, &["-e", &1]) ++ ["--", input.path]
 
     {output, exit_code} =
-      System.cmd("rg", args, cd: input.full_path, stderr_to_stdout: true)
+      System.cmd("rg", args, cd: input.root, stderr_to_stdout: true)
 
-    result =
-      case exit_code do
-        0 -> {:ok, output}
-        # no matches: treat as an ok result with no output
-        1 -> {:ok, ""}
-        _ -> {:error, output}
-      end
+    case exit_code do
+      0 ->
+        {:ok, output}
 
-    result
+      # no matches: treat as an ok result with no output
+      1 ->
+        {:ok, ""}
+
+      err ->
+        Logger.error("grep error", err: err)
+        {:error, output}
+    end
     |> map_ok(&parse_output(&1, input.path))
     |> map_err(&normalize_rg_error/1)
     |> on_err(fn reason -> Logger.warning("grep failed: " <> reason) end)

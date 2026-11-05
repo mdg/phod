@@ -7,6 +7,8 @@ defmodule Phod.Session.Llm do
   conversation so far.
   """
 
+  require Logger
+
   @system_prompt """
   You are a careful coding agent working inside a sandboxed git worktree. \
   You have four tools available: list_files, read_file, grep, and \
@@ -54,10 +56,12 @@ defmodule Phod.Session.Llm do
   end
 
   defp handle_response({:ok, %Req.Response{status: status, body: body}}) do
+    Logger.error("LLM request failed (status #{status}): #{inspect(body)}")
     {:error, "LLM request failed (status #{status}): #{inspect(body)}"}
   end
 
   defp handle_response({:error, exception}) do
+    Logger.error("LLM request failed: #{Exception.message(exception)} (#{inspect(exception)})")
     {:error, "LLM request failed: " <> Exception.message(exception)}
   end
 end

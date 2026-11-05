@@ -1,6 +1,8 @@
 defmodule Phod.SessionTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   setup {Phod.Tool.TestHelpers, :setup_worktree}
 
   setup do
@@ -88,6 +90,28 @@ defmodule Phod.SessionTest do
     snapshot = Phod.Session.get_snapshot(id)
     assert [%{path: "new.txt", created?: true}] = snapshot.edits
     assert File.read!(Path.join(root, "new.txt")) == "hello\n"
+  end
+
+  test "a crashing agent run logs the crash reason and settles back to :idle", %{
+    id: id,
+    root: root
+  } do
+    Req.Test.stub(Phod.Session.LlmStub, fn _conn -> raise "boom" end)
+
+    pid = start_and_allow(id, root)
+    Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:#{id}")
+
+    log =
+      capture_log(fn ->
+        assert :ok = Phod.Session.send_message(id, "hi")
+        Req.Test.allow(Phod.Session.LlmStub, self(), pid)
+
+        assert_receive {:session_snapshot, %{status: :idle, last_error: last_error}}, 1000
+        assert last_error =~ "agent run crashed"
+      end)
+
+    assert log =~ "agent run crashed for session #{id}"
+    assert log =~ "boom"
   end
 
   test "ensure_started/2 called twice returns the same pid", %{id: id, root: root} do

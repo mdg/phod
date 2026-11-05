@@ -42,7 +42,7 @@ config :phod, Phod.Session.Llm,
   base_url: "https://llm.rcdis.co",
   model: "default",
   max_tokens: 4096,
-  req_options: []
+  req_options: [receive_timeout: 60_000]
 
 config :phod, Phod.Session.Llm.OpenCode,
   base_url: "https://opencode.ai/zen",

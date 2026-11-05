@@ -117,13 +117,15 @@ defmodule PhodWeb.SessionLive.Components do
         phx-submit="send_message"
         class="flex gap-2 p-2 border-t"
       >
-        <.input
-          field={@form[:text]}
-          type="text"
-          class="w-full input"
-          placeholder="Message the agent…"
-          disabled={@status == :running}
-        />
+        <div class="flex-1">
+          <.input
+            field={@form[:text]}
+            type="text"
+            class="w-full input"
+            placeholder="Message the agent…"
+            disabled={@status == :running}
+          />
+        </div>
         <.button
           variant="primary"
           disabled={@status == :running}

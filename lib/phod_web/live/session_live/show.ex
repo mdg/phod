@@ -62,6 +62,7 @@ defmodule PhodWeb.SessionLive.Show do
       selected_error: nil,
       selected_image: nil,
       selected_binary?: false,
+      selected_symlink?: false,
       transcript: Transcript.build(snapshot.messages),
       form: to_form(%{"text" => ""}, as: :message)
     )
@@ -115,6 +116,7 @@ defmodule PhodWeb.SessionLive.Show do
             selected_error={@selected_error}
             selected_image={@selected_image}
             selected_binary?={@selected_binary?}
+            selected_symlink?={@selected_symlink?}
           />
         </div>
       </div>
@@ -171,22 +173,34 @@ defmodule PhodWeb.SessionLive.Show do
   end
 
   def handle_event("open_file", %{"path" => path} = params, socket) do
+    type_hint = blank_to_nil(params["type"])
     mime_hint = blank_to_nil(params["mime-type"])
     charset_hint = blank_to_nil(params["charset"])
-    {:noreply, open_file(socket, path, mime_hint, charset_hint)}
+    {:noreply, open_file(socket, path, type_hint, mime_hint, charset_hint)}
   end
 
   defp blank_to_nil(nil), do: nil
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
 
-  # `mime_hint`/`charset_hint` come from the button that triggered this (set
-  # from the `list_files` tool's own `mime_type`/`charset`, both in the file
-  # tree and in the chat transcript). Clicks with no such tool result nearby
-  # (e.g. a `grep` match or `read_file`'s own link) arrive with both `nil`
-  # and just fall back to the code viewer — we don't run `file` again to
-  # find out.
-  defp open_file(socket, path, mime_hint \\ nil, charset_hint \\ nil) do
+  # `type_hint`/`mime_hint`/`charset_hint` come from the button that
+  # triggered this (set from the `list_files` tool's own `type`/
+  # `mime_type`/`charset`, both in the file tree and in the chat
+  # transcript). Clicks with no such tool result nearby (e.g. a `grep`
+  # match or `read_file`'s own link) arrive with all three `nil` and just
+  # fall back to the code viewer — we don't run `file` again to find out.
+  #
+  # Symlinks are handled before path resolution: `Tool.Input`'s
+  # `Path.safe_relative/2` call silently follows symlinks to their target
+  # (that's what keeps the sandbox safe), which would otherwise swap the
+  # displayed path out from under the "this is a symlink" notice.
+  defp open_file(socket, path, type_hint \\ nil, mime_hint \\ nil, charset_hint \\ nil)
+
+  defp open_file(socket, path, "symlink", _mime_hint, _charset_hint) do
+    assign_selected(socket, path: path, symlink?: true)
+  end
+
+  defp open_file(socket, path, _type_hint, mime_hint, charset_hint) do
     root = socket.assigns.snapshot.worktree_root
 
     case Phod.Tool.Input.from_map(%{"path" => path}, root)
@@ -221,9 +235,9 @@ defmodule PhodWeb.SessionLive.Show do
     end
   end
 
-  # Every call sets all five `selected_*` assigns explicitly (defaulting
-  # absent ones), so switching between an image, a binary file, a text
-  # file, and an error never leaves a stale value from the previous
+  # Every call sets all six `selected_*` assigns explicitly (defaulting
+  # absent ones), so switching between a symlink, an image, a binary file,
+  # a text file, and an error never leaves a stale value from the previous
   # selection behind.
   defp assign_selected(socket, opts) do
     assign(socket,
@@ -231,7 +245,8 @@ defmodule PhodWeb.SessionLive.Show do
       selected_lines: Keyword.get(opts, :lines),
       selected_error: Keyword.get(opts, :error),
       selected_image: Keyword.get(opts, :image),
-      selected_binary?: Keyword.get(opts, :binary?, false)
+      selected_binary?: Keyword.get(opts, :binary?, false),
+      selected_symlink?: Keyword.get(opts, :symlink?, false)
     )
   end
 

@@ -187,6 +187,7 @@ defmodule PhodWeb.SessionLive.Components do
             type="button"
             phx-click="open_file"
             phx-value-path={join_path(@payload["path"], entry["name"])}
+            phx-value-type={entry["type"]}
             phx-value-mime-type={entry["mime_type"]}
             phx-value-charset={entry["charset"]}
             class="hover:underline"
@@ -320,6 +321,7 @@ defmodule PhodWeb.SessionLive.Components do
                 type="button"
                 phx-click="open_file"
                 phx-value-path={child}
+                phx-value-type={entry.type}
                 phx-value-mime-type={entry.mime_type}
                 phx-value-charset={entry.charset}
                 class={[
@@ -348,6 +350,7 @@ defmodule PhodWeb.SessionLive.Components do
   attr :selected_error, :string, default: nil
   attr :selected_image, :string, default: nil
   attr :selected_binary?, :boolean, default: false
+  attr :selected_symlink?, :boolean, default: false
 
   def editor_pane(assigns) do
     ~H"""
@@ -357,6 +360,11 @@ defmodule PhodWeb.SessionLive.Components do
           <p class="opacity-60 italic p-2">Select a file to view it here.</p>
         <% @selected_error -> %>
           <p class="text-red-600 p-2">{@selected_error}</p>
+        <% @selected_symlink? -> %>
+          <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">{@selected_path}</p>
+          <p class="opacity-60 italic p-2" data-role="editor-symlink-notice">
+            This is a symlink.
+          </p>
         <% @selected_image -> %>
           <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">{@selected_path}</p>
           <img src={@selected_image} class="max-w-full" />

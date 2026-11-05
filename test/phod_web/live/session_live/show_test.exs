@@ -191,6 +191,22 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert has_element?(view, "[data-role=editor-binary-notice]")
   end
 
+  test "clicking a symlink in the file tree shows a symlink notice instead of the code viewer",
+       %{conn: conn, id: id, owner: owner, tree: tree, root: root} do
+    Phod.Tool.TestHelpers.write(root, "target.txt", "hello")
+    Phod.Tool.TestHelpers.symlink!("target.txt", Path.join(root, "link.txt"))
+    Phod.Session.ensure_started(id, root)
+
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
+
+    view
+    |> element("button[phx-click=open_file][phx-value-path='link.txt']")
+    |> render_click()
+
+    assert has_element?(view, "[data-role=editor-path]", "link.txt")
+    assert has_element?(view, "[data-role=editor-symlink-notice]")
+  end
+
   test "a second connection joining updates the first view's presence roster", %{
     conn: conn,
     id: id,

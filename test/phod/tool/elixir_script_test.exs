@@ -81,4 +81,23 @@ defmodule Phod.Tool.ElixirScriptTest do
     assert {:error, msg} = Tool.run("elixir_script", root, %{"script" => "   "})
     assert msg == "cannot run empty script"
   end
+
+  test "a completed run leaves no stray message that could corrupt a later tool call", %{
+    root: root
+  } do
+    # Regression guard: Rambo.run/3's own `:timeout` option schedules a
+    # bare `:kill` message via Process.send_after/3 that is never
+    # cancelled if the command finishes first - that message would sit in
+    # this process's mailbox and be silently consumed by (and spuriously
+    # kill) the *next* unrelated Rambo.run/3 call this process makes, even
+    # in a different tool with no timeout of its own. `run/1` enforces its
+    # timeout via a disposable Task instead specifically to avoid this.
+    assert {:ok, %{exit_status: 0}} =
+             Tool.run("elixir_script", root, %{"script" => "IO.puts(\"fast\")"})
+
+    assert {:messages, []} = Process.info(self(), :messages)
+
+    # and a subsequent, unrelated Rambo-based tool call runs cleanly too.
+    assert {:ok, %{entries: _entries}} = Tool.run("list_files", root, %{})
+  end
 end

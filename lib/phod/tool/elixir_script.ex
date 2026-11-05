@@ -87,19 +87,44 @@ defmodule Phod.Tool.ElixirScript do
     with {:ok, toolchain} <- resolve_toolchain() do
       args = bwrap_args(toolchain, root, script)
 
-      case Rambo.run("bwrap", args, log: false, timeout: @timeout_ms) do
+      case run_sandboxed(args) do
         {:ok, %Rambo{out: out, err: err, status: status}} ->
           {:ok, %{stdout: truncate(out), stderr: truncate(err), exit_status: status}}
 
         {:error, %Rambo{out: out, err: err, status: status}} ->
           {:ok, %{stdout: truncate(out), stderr: truncate(err), exit_status: status}}
 
-        {:killed, %Rambo{}} ->
+        :timeout ->
           {:error, "script timed out after #{@timeout_ms}ms"}
 
         {:error, reason} when is_binary(reason) ->
           {:error, "could not run script: #{reason}"}
       end
+    end
+  end
+
+  # `Rambo.run/3`'s own `:timeout` option schedules a bare `:kill` message
+  # via `Process.send_after(self(), :kill, timeout)` that is never
+  # cancelled once the command finishes — if it finishes *before* the
+  # timeout, that message is left sitting in this process's mailbox. This
+  # process goes on to run every other tool call for the rest of the
+  # agent's turn (`Phod.Session.Loop` runs them all in one `Task`), so the
+  # stray `:kill` gets silently consumed by, and spuriously kills, the
+  # *next* unrelated `Rambo.run/3` call this process makes — even a
+  # completely different tool with no timeout of its own (confirmed: this
+  # crashed `list_files` with an unhandled `{:killed, _}` case clause after
+  # a prior `elixir_script` call finished well inside its own timeout).
+  # Enforcing the timeout via a disposable `Task` instead avoids this
+  # entirely: `Rambo.run/3` is called with no `:timeout` at all, so it
+  # never schedules anything, and killing the task on timeout can't leak a
+  # message into our mailbox.
+  defp run_sandboxed(args) do
+    task = Task.async(fn -> Rambo.run("bwrap", args, log: false) end)
+
+    case Task.yield(task, @timeout_ms) || Task.shutdown(task, :brutal_kill) do
+      {:ok, result} -> result
+      nil -> :timeout
+      {:exit, reason} -> {:error, "sandbox process exited: #{inspect(reason)}"}
     end
   end
 
@@ -182,6 +207,9 @@ defmodule Phod.Tool.ElixirScript do
     Enum.flat_map(system_roots, &["--ro-bind", &1, &1]) ++
       [
         "--ro-bind",
+        "/home/mdg/.cargo/bin/",
+        "/home/mdg/.cargo/bin/",
+        "--ro-bind",
         toolchain.elixir_root,
         toolchain.elixir_root,
         "--ro-bind",
@@ -192,6 +220,7 @@ defmodule Phod.Tool.ElixirScript do
 
   defp sandbox_path(toolchain) do
     [
+      "/home/mdg/.cargo/bin/",
       Path.join(toolchain.elixir_root, "bin"),
       Path.join(toolchain.erlang_root, "bin"),
       toolchain.erts_bin,

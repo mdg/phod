@@ -6,11 +6,13 @@ defmodule Phod.Tool.RustcTest do
 
   setup {Phod.Tool.TestHelpers, :setup_worktree}
 
-  test "reports success for a file that compiles", %{root: root} do
+  test "reports success and writes the binary for a file that compiles", %{root: root} do
     write(root, "ok.rs", "fn main() {\n    println!(\"hi\");\n}\n")
 
     assert {:ok, %{path: "ok.rs", success: true}} =
              Tool.run("rustc", root, %{"path" => "ok.rs"})
+
+    assert File.exists?(Path.join(root, "ok"))
   end
 
   test "returns compiler diagnostics as a normal result when the file does not compile", %{
@@ -27,12 +29,5 @@ defmodule Phod.Tool.RustcTest do
 
   test "errors when the path does not exist", %{root: root} do
     assert {:error, _} = Tool.run("rustc", root, %{"path" => "missing.rs"})
-  end
-
-  test "does not leave compiler output in the worktree", %{root: root} do
-    write(root, "ok.rs", "fn main() {}\n")
-
-    assert {:ok, %{success: true}} = Tool.run("rustc", root, %{"path" => "ok.rs"})
-    assert Enum.sort(File.ls!(root)) == ["ok.rs"]
   end
 end

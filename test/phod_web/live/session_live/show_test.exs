@@ -284,6 +284,27 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert has_element?(view, "[data-role=editor-symlink-notice]")
   end
 
+  test "the file tree picks up files added and removed on disk", %{
+    conn: conn,
+    id: id,
+    owner: owner,
+    tree: tree,
+    root: root
+  } do
+    Phod.Session.ensure_started(id, root)
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
+
+    refute has_element?(view, "[data-role=file-tree] button", "added.txt")
+
+    Phod.Tool.TestHelpers.write(root, "added.txt", "x")
+    send(view.pid, :refresh_tree)
+    assert has_element?(view, "[data-role=file-tree] button", "added.txt")
+
+    File.rm!(Path.join(root, "added.txt"))
+    send(view.pid, :refresh_tree)
+    refute has_element?(view, "[data-role=file-tree] button", "added.txt")
+  end
+
   test "a second connection joining updates the first view's presence roster", %{
     conn: conn,
     id: id,

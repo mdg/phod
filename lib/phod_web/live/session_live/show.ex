@@ -18,6 +18,10 @@ defmodule PhodWeb.SessionLive.Show do
   alias PhodWeb.Presence
   alias PhodWeb.SessionLive.{Components, FileTree, Transcript}
 
+  # How often the file explorer re-lists its expanded directories, so files
+  # added or removed outside the agent's own edits show up.
+  @tree_refresh_ms 2_000
+
   @impl true
   def mount(%{"owner" => owner, "tree" => tree}, session, socket) do
     id = "#{owner}/#{tree}"
@@ -46,6 +50,7 @@ defmodule PhodWeb.SessionLive.Show do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Phod.PubSub, topic)
       {:ok, _ref} = Presence.track(self(), topic, client_id, %{name: display_name})
+      schedule_tree_refresh()
     end
 
     assign(socket,
@@ -157,6 +162,20 @@ defmodule PhodWeb.SessionLive.Show do
     {:noreply, assign(socket, :presence, list_presence(socket.assigns.topic))}
   end
 
+  def handle_info(:refresh_tree, socket) do
+    schedule_tree_refresh()
+    {:noreply, refresh_tree(socket)}
+  end
+
+  defp schedule_tree_refresh do
+    Process.send_after(self(), :refresh_tree, @tree_refresh_ms)
+  end
+
+  defp refresh_tree(socket) do
+    tree = FileTree.refresh_expanded(socket.assigns.tree, socket.assigns.snapshot.worktree_root)
+    assign(socket, :tree, tree)
+  end
+
   @impl true
   def handle_event("send_message", %{"message" => %{"text" => text}}, socket) do
     case String.trim(text) do
@@ -265,10 +284,7 @@ defmodule PhodWeb.SessionLive.Show do
 
   defp refresh_tree_if_changed(socket, same_edits, same_edits), do: socket
 
-  defp refresh_tree_if_changed(socket, _old_edits, _new_edits) do
-    tree = FileTree.refresh_expanded(socket.assigns.tree, socket.assigns.snapshot.worktree_root)
-    assign(socket, :tree, tree)
-  end
+  defp refresh_tree_if_changed(socket, _old_edits, _new_edits), do: refresh_tree(socket)
 
   defp refresh_selected_if_edited(socket, recent_edit_paths) do
     if socket.assigns.selected_path && socket.assigns.selected_path in recent_edit_paths do

@@ -8,12 +8,10 @@ defmodule Phod.Tool do
   alias __MODULE__.Input
 
   @tools [
-    __MODULE__.ApplyDiff,
     __MODULE__.Grep,
     __MODULE__.ReadFile,
     __MODULE__.ListFiles,
     __MODULE__.Patch,
-    __MODULE__.ElixirScript
   ]
 
   @names Map.new(@tools, fn tool -> {tool.name(), tool} end)

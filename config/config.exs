@@ -41,7 +41,7 @@ config :phod, Phod.Mailer, adapter: Swoosh.Adapters.Local
 config :phod, Phod.Session.Llm,
   base_url: "https://llm.rcdis.co",
   model: "default",
-  max_tokens: 4096,
+  max_tokens: 8192,
   req_options: [receive_timeout: 60_000]
 
 config :phod, Phod.Session.Llm.OpenCode,

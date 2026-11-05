@@ -27,7 +27,7 @@ defmodule Phod.Session.Llm do
     cfg = config()
 
     if cfg[:api_key] in [nil, ""] do
-      {:error, "OPENCODE_API_KEY is not set"}
+      {:error, "LLM_API_KEY is not set"}
     else
       body = %{
         "model" => cfg[:model],

@@ -77,12 +77,14 @@ defmodule Phod.Session.LoopTest do
     assert [%{"name" => "a.ex"}] = entries
   end
 
-  test "a successful apply_diff records an edit and writes the file", %{root: root} do
-    diff = "@@ -0,0 +1,2 @@\n+line one\n+line two"
+  test "a successful patch records an edit and writes the file", %{root: root} do
+    # patch does not create missing parent directories, unlike apply_diff did
+    File.mkdir_p!(Path.join(root, "new"))
+    diff = "--- /dev/null\n+++ b/new/file.txt\n@@ -0,0 +1,2 @@\n+line one\n+line two\n"
 
     Req.Test.expect(
       Phod.Session.LlmStub,
-      tool_use_response("tu_1", "apply_diff", %{"path" => "new/file.txt", "diff" => diff})
+      tool_use_response("tu_1", "patch", %{"path" => "new/file.txt", "diff" => diff})
     )
 
     Req.Test.expect(Phod.Session.LlmStub, text_response("done"))

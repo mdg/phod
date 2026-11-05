@@ -54,7 +54,7 @@ defmodule Phod.Tool.ElixirScript do
     there is no network access to fetch dependencies, so `Mix.install/2` \
     will not work. The script runs with a hard #{@timeout_ms}ms timeout \
     and output beyond #{@max_output_bytes} bytes per stream is truncated. \
-    Use this for anything list_files/read_file/grep/apply_diff can't \
+    Use this for anything list_files/read_file/grep/patch can't \
     express: computations, inspecting structured data, quick experiments, \
     or multi-file changes in one shot. Stdout and stderr are returned \
     along with the exit status whether the script exits cleanly or \

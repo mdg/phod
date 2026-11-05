@@ -69,21 +69,20 @@ Searches project contents.
 - Output: list of matches (`path`, `line_number`, `line`), capped at N results,
   or an error if a pattern is invalid.
 
-### `apply_diff`
+### `patch`
 
-The primary editing tool: applies a unified diff to a file.
+The primary editing tool: applies a unified diff to a file using the `patch`
+utility.
 
-- **Description (for the LLM):** "Apply a unified diff to a file in the
-  worktree. Provide the diff in standard unified format with one or more
-  `@@ -l,c +l,c @@` hunks. Context lines and line numbers are matched exactly
-  against the current file contents; the whole apply is atomic — if any hunk
-  fails to apply, nothing is written. To create a new file, use a diff against
-  `/dev/null`. To verify your edit took effect as expected, follow up with
-  `read_file`."
-- Input: `{ path: string, diff: string }`
-- Output: success message (e.g. "applied 2 hunks"), or a precise failure
-  description ("hunk #3: context mismatch at line 42") so the LLM can re-read
-  the file and retry.
+- **Description (for the LLM):** "Apply a unified diff to one file in the
+  worktree using the `patch` utility. Provide the diff in standard unified
+  format. To create a new file, diff against /dev/null. After applying, verify
+  the result with read_file."
+- Input: `{ path: string, diff: string }` (the diff is piped to `patch` on stdin
+  via `Rambo.run/3`; `path` is validated against the worktree root)
+- Output: `{ path, created?, applied_hunks, output }`, or an error carrying
+  `patch`'s own message (e.g. a hunk that does not match). A failed patch leaves
+  the file unchanged. `patch` does not create missing parent directories.
 
 ### `elixir_script`
 
@@ -96,7 +95,7 @@ Runs an ad hoc Elixir script, sandboxed with `bwrap`.
   Elixir/Erlang standard library is available - there is no network access
   to fetch dependencies, so `Mix.install/2` will not work. The script runs
   with a hard 10-second timeout and output beyond 20,000 bytes per stream
-  is truncated. Use this for anything list_files/read_file/grep/apply_diff
+  is truncated. Use this for anything list_files/read_file/grep/patch
   can't express: computations, inspecting structured data, quick
   experiments, or multi-file changes in one shot. Stdout and stderr are
   returned along with the exit status whether the script exits cleanly or
@@ -126,7 +125,7 @@ Runs an ad hoc Elixir script, sandboxed with `bwrap`.
   produces a final answer.
 - The system prompt instructs the model on the five tools above and the rule
   that all files are relative to the worktree root.
-- All `apply_diff` edits are recorded per-file so the UI can highlight what the
+- All `patch` edits are recorded per-file so the UI can highlight what the
   agent changed.
 - Concurrency: one agent run per session at a time; queued or rejected when the
   user starts a second run.
@@ -238,7 +237,7 @@ Presence is responsible for *who* is in the session.
 Three-pane layout:
 
 1. **Chat pane** — transcript, user input box, streaming agent output, collapsible
-   tool call blocks (`list_files`, `read_file`, `grep`, `apply_diff`,
+   tool call blocks (`list_files`, `read_file`, `grep`, `patch`,
    `elixir_script`) with results.
 2. **File explorer** — live-updating tree of the worktree root (uses the same
    backend as the `list_files` tool).

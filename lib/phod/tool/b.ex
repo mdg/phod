@@ -28,7 +28,7 @@ defmodule Phod.Tool.B do
   e.g. `%{"type" => "object", "properties" => %{...}, "required" => [...]}`.
 
   Only fields the LLM actually supplies belong here. Internal capability
-  flags consumed by `Phod.Tool.Input.validate/2` (such as `apply_diff`'s
+  flags consumed by `Phod.Tool.Input.validate/2` (such as `patch`'s
   `:allow_new_path`) are not real inputs and must not appear in this schema.
   """
   @callback input_schema() :: map()

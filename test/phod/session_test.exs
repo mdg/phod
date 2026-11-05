@@ -57,11 +57,11 @@ defmodule Phod.SessionTest do
     end
   end
 
-  test "apply_diff round-trips through the GenServer and is visible in get_snapshot/1", %{
+  test "patch round-trips through the GenServer and is visible in get_snapshot/1", %{
     id: id,
     root: root
   } do
-    diff = "@@ -0,0 +1,1 @@\n+hello"
+    diff = "--- /dev/null\n+++ b/new.txt\n@@ -0,0 +1 @@\n+hello\n"
 
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
       Req.Test.json(conn, %{
@@ -69,7 +69,7 @@ defmodule Phod.SessionTest do
           %{
             "type" => "tool_use",
             "id" => "tu_1",
-            "name" => "apply_diff",
+            "name" => "patch",
             "input" => %{"path" => "new.txt", "diff" => diff}
           }
         ],

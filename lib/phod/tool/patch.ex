@@ -48,12 +48,20 @@ defmodule Phod.Tool.Patch do
 
   @impl Tool.B
   def run(%Tool.Input{full_path: full_path, path: path, diff: diff}) do
+    created? = not File.exists?(full_path)
+
     case Rambo.run("patch", ["--batch", "--forward", "--", full_path],
            in: diff <> "\n",
            log: false
          ) do
       {:ok, %Rambo{out: out}} ->
-        {:ok, %{path: path, output: String.trim(out)}}
+        {:ok,
+         %{
+           path: path,
+           created?: created?,
+           applied_hunks: count_hunks(diff),
+           output: String.trim(out)
+         }}
 
       {:error, %Rambo{status: status, out: out, err: err}} ->
         {:error, "patch failed (exit #{status}): #{String.trim(out <> err)}"}
@@ -61,5 +69,11 @@ defmodule Phod.Tool.Patch do
       {:error, reason} ->
         {:error, "could not run patch: #{reason}"}
     end
+  end
+
+  # Every hunk must apply for `patch` to succeed, so the count of `@@` headers
+  # in the diff is the number of hunks applied.
+  defp count_hunks(diff) do
+    diff |> String.split("\n") |> Enum.count(&String.starts_with?(&1, "@@"))
   end
 end

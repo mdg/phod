@@ -38,7 +38,7 @@ defmodule Phod.Tool.LibTest do
     assert {:error, msg} = Phod.Tool.Input.resolve_path(root, "new/file.txt", false)
     assert msg == "invalid path"
 
-    # allow_new?: apply_diff's mode
+    # allow_new?: patch's mode
     assert {:ok, resolved} = Phod.Tool.Input.resolve_path(root, "new/file.txt", true)
     assert resolved == "new/file.txt"
   end

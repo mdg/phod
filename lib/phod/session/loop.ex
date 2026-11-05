@@ -79,7 +79,7 @@ defmodule Phod.Session.Loop do
     %{"type" => "tool_result", "tool_use_id" => id, "content" => reason, "is_error" => true}
   end
 
-  defp record_edit("apply_diff", {:ok, payload}, on_event) do
+  defp record_edit("patch", {:ok, payload}, on_event) do
     on_event.(
       {:edit_recorded,
        %{

@@ -129,7 +129,7 @@ defmodule Phod.Tool.Input do
   their container is, so they can never pre-emptively escape through a
   symlink.
 
-  With `allow_new_path?: true` (used by `apply_diff` when creating files) paths in
+  With `allow_new_path?: true` (used by `patch` when creating files) paths in
   not-yet-existing directories are accepted; the default requires the path or
   its parent to exist.
   """

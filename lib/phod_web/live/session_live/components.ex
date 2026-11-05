@@ -238,7 +238,7 @@ defmodule PhodWeb.SessionLive.Components do
     """
   end
 
-  def tool_result_body(%{name: "apply_diff"} = assigns) do
+  def tool_result_body(%{name: "patch"} = assigns) do
     ~H"""
     <p>
       <%= if @payload["created?"] do %>

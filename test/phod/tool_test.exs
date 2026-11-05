@@ -13,20 +13,12 @@ defmodule Phod.ToolTest do
     end
   end
 
-  test "anthropic_tools/0 builds a well-formed tools array for all 6 tools" do
+  test "anthropic_tools/0 builds a well-formed tools array for every registered tool" do
     tools = Tool.anthropic_tools()
-    assert length(tools) == 6
+    assert length(tools) == 4
 
     names = Enum.map(tools, & &1["name"])
-
-    assert Enum.sort(names) == [
-             "apply_diff",
-             "elixir_script",
-             "grep",
-             "list_files",
-             "patch",
-             "read_file"
-           ]
+    assert Enum.sort(names) == ["grep", "list_files", "patch", "read_file"]
 
     for tool <- tools do
       assert %{"name" => name, "description" => description, "input_schema" => schema} = tool
@@ -36,9 +28,9 @@ defmodule Phod.ToolTest do
     end
   end
 
-  test "apply_diff's schema does not expose the internal allow_new_path flag" do
+  test "patch's schema does not expose the internal allow_new_path flag" do
     %{"input_schema" => schema} =
-      Enum.find(Tool.anthropic_tools(), &(&1["name"] == "apply_diff"))
+      Enum.find(Tool.anthropic_tools(), &(&1["name"] == "patch"))
 
     refute Map.has_key?(schema["properties"], "allow_new_path")
     assert Enum.sort(Map.keys(schema["properties"])) == ["diff", "path"]

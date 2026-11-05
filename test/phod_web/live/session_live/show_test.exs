@@ -152,6 +152,45 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert has_element?(view, "[data-role=editor] span", "hello")
   end
 
+  test "the chat transcript shows the script sent to elixir_script and its result", %{
+    conn: conn,
+    id: id,
+    owner: owner,
+    tree: tree,
+    root: root
+  } do
+    script = "IO.puts(\"hi from script\")"
+
+    Req.Test.expect(Phod.Session.LlmStub, fn conn ->
+      Req.Test.json(conn, %{
+        "content" => [
+          %{
+            "type" => "tool_use",
+            "id" => "tu_1",
+            "name" => "elixir_script",
+            "input" => %{"script" => script}
+          }
+        ],
+        "stop_reason" => "tool_use"
+      })
+    end)
+
+    Req.Test.expect(Phod.Session.LlmStub, text_response("ran it"))
+
+    pid = start_and_allow(id, root)
+    Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:#{id}")
+
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
+
+    view |> form("#message-form", message: %{text: "run a script"}) |> render_submit()
+    Req.Test.allow(Phod.Session.LlmStub, self(), pid)
+
+    assert_receive {:session_snapshot, %{status: :idle}}, 1000
+
+    assert has_element?(view, "[data-role=tool-call-script]", script)
+    assert has_element?(view, "[data-role=tool-result-stdout]", "hi from script")
+  end
+
   @tiny_png Base.decode64!(
               "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGNgAAIAAAUAAeIhvDMAAAAASUVORK5CYII="
             )

@@ -160,6 +160,11 @@ defmodule PhodWeb.SessionLive.Components do
     <details class="border rounded px-2 py-1 text-sm" data-role="tool-call" data-name={@item.name}>
       <summary class="cursor-pointer font-mono">{@item.name} · {tool_summary(@item)}</summary>
       <div class="mt-2 space-y-1 pl-2">
+        <pre
+          :if={@item.name == "elixir_script"}
+          class="whitespace-pre-wrap bg-base-200 rounded p-2"
+          data-role="tool-call-script"
+        >{@item.input["script"]}</pre>
         <%= case @item.result do %>
           <% :pending -> %>
             <p class="italic opacity-60">running…</p>
@@ -253,6 +258,24 @@ defmodule PhodWeb.SessionLive.Components do
     """
   end
 
+  def tool_result_body(%{name: "elixir_script"} = assigns) do
+    ~H"""
+    <p class="text-xs opacity-70" data-role="tool-result-exit-status">
+      exit status: {@payload["exit_status"]}
+    </p>
+    <pre
+      :if={@payload["stdout"] != ""}
+      class="whitespace-pre-wrap"
+      data-role="tool-result-stdout"
+    >{@payload["stdout"]}</pre>
+    <pre
+      :if={@payload["stderr"] != ""}
+      class="whitespace-pre-wrap text-red-600"
+      data-role="tool-result-stderr"
+    >{@payload["stderr"]}</pre>
+    """
+  end
+
   def tool_result_body(assigns) do
     ~H"""
     <pre class="whitespace-pre-wrap">{Jason.encode!(@payload)}</pre>
@@ -263,6 +286,7 @@ defmodule PhodWeb.SessionLive.Components do
     cond do
       is_binary(input["path"]) -> input["path"]
       is_list(input["patterns"]) -> Enum.join(input["patterns"], ", ")
+      is_binary(input["script"]) -> input["script"] |> String.split("\n") |> List.first()
       true -> ""
     end
   end

@@ -60,6 +60,8 @@ defmodule PhodWeb.SessionLive.Show do
       selected_path: nil,
       selected_lines: nil,
       selected_error: nil,
+      selected_image: nil,
+      selected_binary?: false,
       transcript: Transcript.build(snapshot.messages),
       form: to_form(%{"text" => ""}, as: :message)
     )
@@ -111,6 +113,8 @@ defmodule PhodWeb.SessionLive.Show do
             selected_path={@selected_path}
             selected_lines={@selected_lines}
             selected_error={@selected_error}
+            selected_image={@selected_image}
+            selected_binary?={@selected_binary?}
           />
         </div>
       </div>
@@ -166,24 +170,69 @@ defmodule PhodWeb.SessionLive.Show do
     {:noreply, assign(socket, :tree, tree)}
   end
 
-  def handle_event("open_file", %{"path" => path}, socket) do
-    {:noreply, open_file(socket, path)}
+  def handle_event("open_file", %{"path" => path} = params, socket) do
+    mime_hint = blank_to_nil(params["mime-type"])
+    charset_hint = blank_to_nil(params["charset"])
+    {:noreply, open_file(socket, path, mime_hint, charset_hint)}
   end
 
-  defp open_file(socket, path) do
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(value), do: value
+
+  # `mime_hint`/`charset_hint` come from the button that triggered this (set
+  # from the `list_files` tool's own `mime_type`/`charset`, both in the file
+  # tree and in the chat transcript). Clicks with no such tool result nearby
+  # (e.g. a `grep` match or `read_file`'s own link) arrive with both `nil`
+  # and just fall back to the code viewer — we don't run `file` again to
+  # find out.
+  defp open_file(socket, path, mime_hint \\ nil, charset_hint \\ nil) do
     root = socket.assigns.snapshot.worktree_root
 
-    case Phod.Tool.run("read_file", root, %{"path" => path}) do
-      {:ok, %{content: content}} ->
-        assign(socket,
-          selected_path: path,
-          selected_lines: parse_numbered_lines(content),
-          selected_error: nil
-        )
+    case Phod.Tool.Input.from_map(%{"path" => path}, root)
+         |> Phod.Tool.Input.validate_fields([:path]) do
+      {:ok, input} ->
+        render_selected_file(socket, input, mime_hint, charset_hint)
 
       {:error, reason} ->
-        assign(socket, selected_path: path, selected_lines: nil, selected_error: reason)
+        assign_selected(socket, path: path, error: reason)
     end
+  end
+
+  defp render_selected_file(socket, input, mime_type, charset) do
+    cond do
+      is_binary(mime_type) and String.starts_with?(mime_type, "image/") ->
+        data_uri = "data:#{mime_type};base64," <> Base.encode64(File.read!(input.full_path))
+        assign_selected(socket, path: input.path, image: data_uri)
+
+      charset == "binary" ->
+        assign_selected(socket, path: input.path, binary?: true)
+
+      true ->
+        root = socket.assigns.snapshot.worktree_root
+
+        case Phod.Tool.run("read_file", root, %{"path" => input.path}) do
+          {:ok, %{content: content}} ->
+            assign_selected(socket, path: input.path, lines: parse_numbered_lines(content))
+
+          {:error, reason} ->
+            assign_selected(socket, path: input.path, error: reason)
+        end
+    end
+  end
+
+  # Every call sets all five `selected_*` assigns explicitly (defaulting
+  # absent ones), so switching between an image, a binary file, a text
+  # file, and an error never leaves a stale value from the previous
+  # selection behind.
+  defp assign_selected(socket, opts) do
+    assign(socket,
+      selected_path: Keyword.fetch!(opts, :path),
+      selected_lines: Keyword.get(opts, :lines),
+      selected_error: Keyword.get(opts, :error),
+      selected_image: Keyword.get(opts, :image),
+      selected_binary?: Keyword.get(opts, :binary?, false)
+    )
   end
 
   @line_pattern ~r/^(\d+): (.*)$/

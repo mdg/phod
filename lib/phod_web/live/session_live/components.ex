@@ -187,6 +187,8 @@ defmodule PhodWeb.SessionLive.Components do
             type="button"
             phx-click="open_file"
             phx-value-path={join_path(@payload["path"], entry["name"])}
+            phx-value-mime-type={entry["mime_type"]}
+            phx-value-charset={entry["charset"]}
             class="hover:underline"
           >
             {entry["name"]}
@@ -318,6 +320,8 @@ defmodule PhodWeb.SessionLive.Components do
                 type="button"
                 phx-click="open_file"
                 phx-value-path={child}
+                phx-value-mime-type={entry.mime_type}
+                phx-value-charset={entry.charset}
                 class={[
                   "hover:underline",
                   child in @recent_edit_paths && "text-amber-600 font-semibold"
@@ -342,6 +346,8 @@ defmodule PhodWeb.SessionLive.Components do
   attr :selected_path, :string, default: nil
   attr :selected_lines, :list, default: nil
   attr :selected_error, :string, default: nil
+  attr :selected_image, :string, default: nil
+  attr :selected_binary?, :boolean, default: false
 
   def editor_pane(assigns) do
     ~H"""
@@ -351,6 +357,14 @@ defmodule PhodWeb.SessionLive.Components do
           <p class="opacity-60 italic p-2">Select a file to view it here.</p>
         <% @selected_error -> %>
           <p class="text-red-600 p-2">{@selected_error}</p>
+        <% @selected_image -> %>
+          <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">{@selected_path}</p>
+          <img src={@selected_image} class="max-w-full" />
+        <% @selected_binary? -> %>
+          <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">{@selected_path}</p>
+          <p class="opacity-60 italic p-2" data-role="editor-binary-notice">
+            This file is binary and can't be displayed here.
+          </p>
         <% true -> %>
           <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">{@selected_path}</p>
           <div :for={{number, text} <- @selected_lines} class="flex gap-2">

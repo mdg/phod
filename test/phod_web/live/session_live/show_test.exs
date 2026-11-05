@@ -152,6 +152,45 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert has_element?(view, "[data-role=editor] span", "hello")
   end
 
+  @tiny_png Base.decode64!(
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGNgAAIAAAUAAeIhvDMAAAAASUVORK5CYII="
+            )
+
+  test "clicking an image file in the file tree displays it as an image", %{
+    conn: conn,
+    id: id,
+    owner: owner,
+    tree: tree,
+    root: root
+  } do
+    Phod.Tool.TestHelpers.write(root, "tiny.png", @tiny_png)
+    Phod.Session.ensure_started(id, root)
+
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
+
+    view
+    |> element("button[phx-click=open_file][phx-value-path='tiny.png']")
+    |> render_click()
+
+    assert has_element?(view, "[data-role=editor-path]", "tiny.png")
+    assert render(view) =~ ~s(src="data:image/png;base64,)
+  end
+
+  test "clicking a binary file in the file tree shows a binary notice instead of the code viewer",
+       %{conn: conn, id: id, owner: owner, tree: tree, root: root} do
+    Phod.Tool.TestHelpers.write(root, "blob.bin", :crypto.strong_rand_bytes(64))
+    Phod.Session.ensure_started(id, root)
+
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
+
+    view
+    |> element("button[phx-click=open_file][phx-value-path='blob.bin']")
+    |> render_click()
+
+    assert has_element?(view, "[data-role=editor-path]", "blob.bin")
+    assert has_element?(view, "[data-role=editor-binary-notice]")
+  end
+
   test "a second connection joining updates the first view's presence roster", %{
     conn: conn,
     id: id,

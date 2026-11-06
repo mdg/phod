@@ -7,18 +7,19 @@ defmodule Phod.Tool do
   import Rexult
   alias __MODULE__.Input
 
-  @tools [
-    __MODULE__.Grep,
-    __MODULE__.ReadFile,
-    __MODULE__.ListFiles,
-    __MODULE__.Patch,
-    __MODULE__.Rustc
-  ]
+  @tools %{
+    __MODULE__.ElixirScript => false,
+    __MODULE__.Grep => true,
+    __MODULE__.ReadFile => true,
+    __MODULE__.ListFiles => true,
+    __MODULE__.Patch => true,
+    __MODULE__.Rustc => true,
+  }
 
-  @names Map.new(@tools, fn tool -> {tool.name(), tool} end)
+  @names Map.new(@tools, fn {tool, _} -> {tool.name(), tool} end)
 
   @spec all() :: [module()]
-  def all, do: @tools
+  def all, do: Map.keys(@tools)
 
   @spec specs() ::
           [
@@ -29,7 +30,7 @@ defmodule Phod.Tool do
             }
           ]
   def specs do
-    for tool <- @tools do
+    for {tool, true} <- @tools do
       %{name: tool.name(), description: tool.description(), input_schema: tool.input_schema()}
     end
   end

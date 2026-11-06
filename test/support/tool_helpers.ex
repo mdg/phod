@@ -12,7 +12,13 @@ defmodule Phod.Tool.TestHelpers do
       Path.join([System.tmp_dir!(), "phod-tool-test-#{System.unique_integer([:positive])}"])
 
     File.mkdir_p!(root)
-    on_exit(fn -> File.rm_rf!(root) end)
+
+    on_exit(fn ->
+      File.rm_rf!(root)
+      # sessions started on this worktree also write a session log beside it
+      File.rm(root <> ".md")
+    end)
+
     %{root: root}
   end
 

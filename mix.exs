@@ -74,7 +74,8 @@ defmodule Phod.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:rexult, github: "mdg/rexult"},
-      {:rambo, "~> 0.3.4"}
+      {:rambo, "~> 0.3.4"},
+      {:tzdata, "~> 1.1"}
     ]
   end
 

@@ -114,6 +114,46 @@ defmodule Phod.SessionTest do
     assert log =~ "boom"
   end
 
+  test "the session log records the user, tool calls, tool results and replies", %{
+    id: id,
+    root: root
+  } do
+    log_path = Phod.Session.Log.path(root)
+    on_exit(fn -> File.rm(log_path) end)
+
+    Req.Test.expect(Phod.Session.LlmStub, fn conn ->
+      Req.Test.json(conn, %{
+        "content" => [
+          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}}
+        ],
+        "stop_reason" => "tool_use"
+      })
+    end)
+
+    Req.Test.expect(Phod.Session.LlmStub, text_response("all listed"))
+
+    pid = start_and_allow(id, root)
+    Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:#{id}")
+
+    assert :ok = Phod.Session.send_message(id, "what files are here?", "Ada")
+    Req.Test.allow(Phod.Session.LlmStub, self(), pid)
+
+    assert_receive {:session_snapshot, %{status: :idle}}, 1000
+
+    log = File.read!(log_path)
+
+    # the system prompt is at the top, from when the session started
+    assert log =~ "# Session log"
+    assert log =~ "**system prompt:**"
+
+    assert log =~ "### Ada ·"
+    assert log =~ "what files are here?"
+    assert log =~ "**tool call:** `list_files`"
+    assert log =~ "**tool result:**"
+    assert log =~ "all listed"
+    assert log =~ "### phod ·"
+  end
+
   test "ensure_started/2 called twice returns the same pid", %{id: id, root: root} do
     assert {:ok, pid} = Phod.Session.ensure_started(id, root)
     assert {:ok, ^pid} = Phod.Session.ensure_started(id, root)

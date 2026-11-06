@@ -19,6 +19,10 @@ defmodule Phod.Session.Llm do
   Do not write tests or try to execute the generated code. \
   """
 
+  @doc "The system prompt sent with every request."
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
+
   @type block :: map()
   @type message :: map()
 

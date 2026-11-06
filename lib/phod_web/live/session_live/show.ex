@@ -56,6 +56,7 @@ defmodule PhodWeb.SessionLive.Show do
     assign(socket,
       id: id,
       view: :session,
+      display_name: display_name,
       topic: topic,
       snapshot: snapshot,
       edits_marker: length(snapshot.edits),
@@ -180,7 +181,7 @@ defmodule PhodWeb.SessionLive.Show do
   def handle_event("send_message", %{"message" => %{"text" => text}}, socket) do
     case String.trim(text) do
       "" -> :ok
-      text -> Session.send_message(socket.assigns.id, text)
+      text -> Session.send_message(socket.assigns.id, text, socket.assigns.display_name)
     end
 
     {:noreply, assign(socket, :form, to_form(%{"text" => ""}, as: :message))}

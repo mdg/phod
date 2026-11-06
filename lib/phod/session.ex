@@ -30,12 +30,13 @@ defmodule Phod.Session do
 
   require Logger
 
-  alias Phod.Session.Loop
+  alias Phod.Session.{Llm, Log, Loop}
 
   defstruct [
     :id,
     :worktree_root,
     :idle_timeout,
+    :log_path,
     messages: [],
     status: :idle,
     edits: [],
@@ -79,13 +80,15 @@ defmodule Phod.Session do
   end
 
   @doc """
-  Appends `text` as a user message and kicks off the agent loop. Returns
-  immediately without waiting for the loop to finish.
+  Appends `text` as a user message from `sender` (the user's display name,
+  used in the session log) and kicks off the agent loop. Returns immediately
+  without waiting for the loop to finish.
   """
-  @spec send_message(String.t(), String.t()) :: :ok | {:error, :busy} | {:error, :not_found}
-  def send_message(id, text) do
+  @spec send_message(String.t(), String.t(), String.t()) ::
+          :ok | {:error, :busy} | {:error, :not_found}
+  def send_message(id, text, sender \\ "Anonymous") do
     with {:ok, pid} <- whereis(id) do
-      GenServer.call(pid, {:send_message, text})
+      GenServer.call(pid, {:send_message, text, sender})
     else
       :error -> {:error, :not_found}
     end
@@ -117,8 +120,11 @@ defmodule Phod.Session do
       state = %__MODULE__{
         id: id,
         worktree_root: worktree_root,
-        idle_timeout: idle_timeout
+        idle_timeout: idle_timeout,
+        log_path: Log.path(worktree_root)
       }
+
+      reset_log(state)
 
       {:ok, state, idle_timeout}
     else
@@ -127,14 +133,15 @@ defmodule Phod.Session do
   end
 
   @impl true
-  def handle_call({:send_message, _text}, _from, %__MODULE__{status: :running} = state) do
+  def handle_call({:send_message, _text, _sender}, _from, %__MODULE__{status: :running} = state) do
     {:reply, {:error, :busy}, state, state.idle_timeout}
   end
 
-  def handle_call({:send_message, text}, _from, %__MODULE__{status: :idle} = state) do
+  def handle_call({:send_message, text, sender}, _from, %__MODULE__{status: :idle} = state) do
     user_msg = %{"role" => "user", "content" => [%{"type" => "text", "text" => text}]}
     new_messages = state.messages ++ [user_msg]
     state = %{state | messages: new_messages, status: :running, last_error: nil}
+    log(state, Log.user_entry(sender, text))
     broadcast(state)
 
     parent = self()
@@ -156,6 +163,7 @@ defmodule Phod.Session do
 
   @impl true
   def handle_info({:loop_event, {:message_appended, msg}}, state) do
+    log(state, Log.message_entries(msg, "user"))
     state = %{state | messages: state.messages ++ [msg]}
     broadcast(state)
     {:noreply, state, state.idle_timeout}
@@ -207,6 +215,28 @@ defmodule Phod.Session do
       edits: state.edits,
       last_error: state.last_error
     }
+  end
+
+  # The session log is best-effort: a failed write is reported and the
+  # session carries on without it.
+  defp reset_log(state) do
+    case Log.reset(state.log_path, Llm.system_prompt()) do
+      :ok -> :ok
+      {:error, reason} -> warn_log_failure(state, reason)
+    end
+  end
+
+  defp log(state, entries) do
+    case Log.append(state.log_path, entries) do
+      :ok -> :ok
+      {:error, reason} -> warn_log_failure(state, reason)
+    end
+  end
+
+  defp warn_log_failure(state, reason) do
+    Logger.warning(
+      "session log #{state.log_path} write failed for #{state.id}: #{inspect(reason)}"
+    )
   end
 
   defp broadcast(state) do

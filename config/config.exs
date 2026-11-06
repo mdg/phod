@@ -77,6 +77,9 @@ config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
+# Time zone database for converting timestamps (e.g. the session log's America/New_York times)
+config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
+
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 

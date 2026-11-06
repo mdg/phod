@@ -50,9 +50,11 @@ defmodule Phod.Tool do
   def run(name, root, input) do
     case Map.fetch(@names, name) do
       {:ok, tool} ->
+        params = tool.params()
+
         input
         |> Input.from_map(root)
-        |> Input.validate_fields(tool.tool_fields())
+        |> Input.validate_params(tool.tool_fields())
         |> ok_and_then(&tool.run/1)
 
       :error ->

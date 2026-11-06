@@ -22,11 +22,10 @@ defmodule Phod.Tool.ListFiles do
     """
 
   @impl Tool.B
-  def tool_fields() do
-    [:path, :all]
+  def params() do
+    [Input.path()]
   end
 
-  @impl Tool.B
   def input_schema do
     %{
       "type" => "object",
@@ -46,7 +45,7 @@ defmodule Phod.Tool.ListFiles do
   end
 
   @impl Tool.B
-  def run(%Tool.Input{} = input) do
+  def run(%{path, all: all}) do
     args = ["-lF"] ++ if(input.all, do: ["-A"], else: []) ++ [input.full_path]
 
     case Rambo.run("ls", args, log: false) do

@@ -18,11 +18,21 @@ defmodule Phod.Session.Loop do
   @spec run([map()], String.t(), on_event(), pos_integer()) ::
           {:ok, [map()]} | {:error, String.t(), [map()]}
   def run(messages, root, on_event, max_rounds \\ @default_max_rounds) do
-    step(messages, root, on_event, max_rounds, max_rounds)
+    instructions = read_instructions(root)
+    step(messages, root, on_event, max_rounds, max_rounds, instructions)
   end
 
-  defp step(messages, root, on_event, remaining, total) do
-    case Llm.complete(messages) do
+  # `AGENTS.md` is read at the start of every run, so edits made during the
+  # session apply from the next message on. A missing file means no instructions.
+  defp read_instructions(root) do
+    case File.read(Path.join(root, "AGENTS.md")) do
+      {:ok, text} -> text
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp step(messages, root, on_event, remaining, total, instructions) do
+    case Llm.complete(messages, instructions) do
       {:error, reason} ->
         {:error, reason, messages}
 
@@ -32,19 +42,19 @@ defmodule Phod.Session.Loop do
         on_event.({:message_appended, assistant_msg})
 
         if stop_reason == "tool_use" do
-          continue_with_tools(messages, root, on_event, blocks, remaining, total)
+          continue_with_tools(messages, root, on_event, blocks, remaining, total, instructions)
         else
           {:ok, messages}
         end
     end
   end
 
-  defp continue_with_tools(messages, _root, _on_event, _blocks, remaining, total)
+  defp continue_with_tools(messages, _root, _on_event, _blocks, remaining, total, _instructions)
        when remaining <= 0 do
     {:error, "tool loop exceeded max rounds (#{total})", messages}
   end
 
-  defp continue_with_tools(messages, root, on_event, blocks, remaining, total) do
+  defp continue_with_tools(messages, root, on_event, blocks, remaining, total, instructions) do
     result_blocks =
       blocks
       |> Enum.filter(&(&1["type"] == "tool_use"))
@@ -54,7 +64,7 @@ defmodule Phod.Session.Loop do
     messages = messages ++ [tool_result_msg]
     on_event.({:message_appended, tool_result_msg})
 
-    step(messages, root, on_event, remaining - 1, total)
+    step(messages, root, on_event, remaining - 1, total, instructions)
   end
 
   defp execute_tool(block, root, on_event) do

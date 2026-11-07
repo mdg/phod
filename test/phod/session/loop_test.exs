@@ -162,4 +162,71 @@ defmodule Phod.Session.LoopTest do
     # original user message + assistant tool_use + user tool_result
     assert length(messages_so_far) == 3
   end
+
+  defp capture_system_blocks do
+    test_pid = self()
+
+    Req.Test.stub(Phod.Session.LlmStub, fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      send(test_pid, {:system_blocks, Jason.decode!(raw)["system"]})
+
+      Req.Test.json(conn, %{
+        "content" => [%{"type" => "text", "text" => "ok"}],
+        "stop_reason" => "end_turn"
+      })
+    end)
+  end
+
+  test "each run reads AGENTS.md from the worktree, so edits apply to the next run", %{
+    root: root
+  } do
+    capture_system_blocks()
+    write(root, "AGENTS.md", "rule one")
+
+    assert {:ok, _} = Loop.run([user_message("first")], root, fn _ -> :ok end)
+    assert_received {:system_blocks, [_static, %{"text" => first}]}
+    assert first =~ "rule one"
+
+    write(root, "AGENTS.md", "rule two")
+
+    assert {:ok, _} = Loop.run([user_message("second")], root, fn _ -> :ok end)
+    assert_received {:system_blocks, [_static, %{"text" => second}]}
+    assert second =~ "rule two"
+    refute second =~ "rule one"
+  end
+
+  test "a worktree without AGENTS.md runs with only the static system prompt", %{root: root} do
+    capture_system_blocks()
+
+    assert {:ok, _} = Loop.run([user_message("hi")], root, fn _ -> :ok end)
+    assert_received {:system_blocks, blocks}
+    assert [%{"type" => "text"}] = blocks
+  end
+
+  test "instructions are sent on every round of a tool loop", %{root: root} do
+    write(root, "AGENTS.md", "rule for all rounds")
+    test_pid = self()
+
+    Req.Test.expect(Phod.Session.LlmStub, fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      send(test_pid, {:system_blocks, Jason.decode!(raw)["system"]})
+
+      Req.Test.json(conn, %{
+        "content" => [%{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}}],
+        "stop_reason" => "tool_use"
+      })
+    end)
+
+    Req.Test.expect(Phod.Session.LlmStub, fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      send(test_pid, {:system_blocks, Jason.decode!(raw)["system"]})
+      Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "done"}], "stop_reason" => "end_turn"})
+    end)
+
+    assert {:ok, _} = Loop.run([user_message("list")], root, fn _ -> :ok end)
+    assert_received {:system_blocks, [_, %{"text" => round1}]}
+    assert_received {:system_blocks, [_, %{"text" => round2}]}
+    assert round1 =~ "rule for all rounds"
+    assert round2 =~ "rule for all rounds"
+  end
 end

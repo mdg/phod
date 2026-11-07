@@ -60,4 +60,45 @@ defmodule Phod.Session.LlmTest do
     # with "no plug/stub" rather than returning our error tuple.
     assert Llm.complete(@messages) == {:error, "LLM_API_KEY is not set"}
   end
+
+  defp capture_system_blocks do
+    test_pid = self()
+
+    Req.Test.stub(Phod.Session.LlmStub, fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      send(test_pid, {:system_blocks, Jason.decode!(raw)["system"]})
+
+      Req.Test.json(conn, %{
+        "content" => [%{"type" => "text", "text" => "ok"}],
+        "stop_reason" => "end_turn"
+      })
+    end)
+  end
+
+  test "the static system prompt names no tools" do
+    for tool <- ~w(list_files read_file grep patch rustc elixir_script) do
+      refute Llm.system_prompt() =~ tool
+    end
+  end
+
+  test "without instructions, the system is only the static prompt" do
+    capture_system_blocks()
+
+    assert {:ok, _} = Llm.complete(@messages)
+    assert_received {:system_blocks, blocks}
+    assert blocks == [%{"type" => "text", "text" => Llm.system_prompt()}]
+  end
+
+  test "instructions go in a second block marked for prompt caching" do
+    capture_system_blocks()
+
+    assert {:ok, _} = Llm.complete(@messages, "Use snake_case.")
+    assert_received {:system_blocks, [static, instructions]}
+
+    assert static == %{"type" => "text", "text" => Llm.system_prompt()}
+    assert instructions["text"] =~ "Project instructions (AGENTS.md):"
+    assert instructions["text"] =~ "Use snake_case."
+    assert instructions["cache_control"] == %{"type" => "ephemeral"}
+    refute Map.has_key?(static, "cache_control")
+  end
 end

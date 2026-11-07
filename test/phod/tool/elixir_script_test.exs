@@ -79,7 +79,7 @@ defmodule Phod.Tool.ElixirScriptTest do
 
   test "errors on an empty script without starting a subprocess", %{root: root} do
     assert {:error, msg} = Tool.run("elixir_script", root, %{"script" => "   "})
-    assert msg == "cannot run empty script"
+    assert msg == "invalid empty string"
   end
 
   test "a completed run leaves no stray message that could corrupt a later tool call", %{

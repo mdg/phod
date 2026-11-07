@@ -25,7 +25,10 @@ defmodule Phod.Tool.Patch do
   @impl Tool.B
   def params do
     [
-      Tool.Input.path(),
+      Tool.Input.path(:path, "File to patch, relative to the worktree root.",
+        required: true,
+        allow_new_path: true
+      ),
       Tool.Input.diff(),
     ]
   end

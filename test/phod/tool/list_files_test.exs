@@ -170,7 +170,7 @@ defmodule Phod.Tool.ListFilesTest do
 
     test "errors when all is not a boolean", %{root: root} do
       assert {:error, msg} = Tool.run("list_files", root, %{"all" => "true"})
-      assert msg == "invalid all"
+      assert msg == ~S[invalid boolean, got: "true"]
     end
   end
 end

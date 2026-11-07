@@ -109,6 +109,7 @@ custom classes must fully style the input
       assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
 
    - Instead of sleeping to synchronize before the next call, **always** use `_ = :sys.get_state/1` to ensure the process has handled prior messages
+- Assert on full strings when possible and the expected string is < 70 characters
 <!-- phoenix:elixir-end -->
 
 <!-- phoenix:phoenix-start -->

@@ -24,7 +24,7 @@ defmodule Phod.Tool.ListFiles do
   @impl Tool.B
   def params() do
     [
-      Tool.Input.path(),
+      Tool.Input.path(required: false) |> Tool.Input.optional("."),
       Tool.Input.bool(:all, "Include hidden (dot) files"),
     ]
   end

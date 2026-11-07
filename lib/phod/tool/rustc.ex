@@ -35,7 +35,7 @@ defmodule Phod.Tool.Rustc do
   end
 
   @impl Tool.B
-  def run(%{root: root, path: path}, _opts) do
+  def run(%{path: path}, %{session_root: root}) do
     case Rambo.run("rustc", [path], cd: root, log: false) do
       {:ok, %Rambo{err: err, out: out}} ->
         {:ok, %{path: path, success: true, diagnostics: String.trim(err <> out)}}

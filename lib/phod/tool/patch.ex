@@ -19,7 +19,10 @@ defmodule Phod.Tool.Patch do
     Apply a unified diff to one file in the worktree using the `patch` \
     utility. Provide the diff in standard unified format. To create a new \
     file, diff against /dev/null. After applying, verify the result with \
-    read_file.\
+    read_file. \
+    The diff contents will be passed directly to the patch command. \
+    Include **only** valid inputs to patch. \
+    Delete files with the rm_file tool instead of using patch. \
     """
 
   @impl Tool.B

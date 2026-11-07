@@ -5,9 +5,7 @@ defmodule Phod.SessionTest do
 
   setup {Phod.Tool.TestHelpers, :setup_worktree}
 
-  setup do
-    %{id: "test-session-#{System.unique_integer([:positive])}"}
-  end
+  defp unique_tree, do: "wt-#{System.unique_integer([:positive])}"
 
   defp text_response(text, stop_reason \\ "end_turn") do
     fn conn ->
@@ -20,10 +18,10 @@ defmodule Phod.SessionTest do
 
   import Phod.Session.TestHelpers, only: [start_and_allow: 2]
 
-  test "send_message/2 runs the loop and settles back to :idle", %{id: id, root: root} do
+  test "send_message/2 runs the loop and settles back to :idle", %{id: id, user: user, tree: tree} do
     Req.Test.expect(Phod.Session.LlmStub, text_response("hello!"))
 
-    pid = start_and_allow(id, root)
+    pid = start_and_allow(user, tree)
     Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:#{id}")
 
     assert :ok = Phod.Session.send_message(id, "hi")
@@ -34,7 +32,7 @@ defmodule Phod.SessionTest do
     assert length(messages) == 2
   end
 
-  test "a second send_message/2 while running is rejected with :busy", %{id: id, root: root} do
+  test "a second send_message/2 while running is rejected with :busy", %{id: id, user: user, tree: tree} do
     test_pid = self()
 
     Req.Test.stub(Phod.Session.LlmStub, fn conn ->
@@ -43,7 +41,7 @@ defmodule Phod.SessionTest do
       Req.Test.json(conn, %{"content" => [], "stop_reason" => "end_turn"})
     end)
 
-    pid = start_and_allow(id, root)
+    pid = start_and_allow(user, tree)
 
     assert :ok = Phod.Session.send_message(id, "first")
     Req.Test.allow(Phod.Session.LlmStub, self(), pid)
@@ -57,10 +55,7 @@ defmodule Phod.SessionTest do
     end
   end
 
-  test "patch round-trips through the GenServer and is visible in get_snapshot/1", %{
-    id: id,
-    root: root
-  } do
+  test "patch round-trips through the GenServer and is visible in get_snapshot/1", %{id: id, root: root, user: user, tree: tree} do
     diff = "--- /dev/null\n+++ b/new.txt\n@@ -0,0 +1 @@\n+hello\n"
 
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
@@ -79,7 +74,7 @@ defmodule Phod.SessionTest do
 
     Req.Test.expect(Phod.Session.LlmStub, text_response("done"))
 
-    pid = start_and_allow(id, root)
+    pid = start_and_allow(user, tree)
     Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:#{id}")
 
     assert :ok = Phod.Session.send_message(id, "create new.txt")
@@ -92,13 +87,10 @@ defmodule Phod.SessionTest do
     assert File.read!(Path.join(root, "new.txt")) == "hello\n"
   end
 
-  test "a crashing agent run logs the crash reason and settles back to :idle", %{
-    id: id,
-    root: root
-  } do
+  test "a crashing agent run logs the crash reason and settles back to :idle", %{id: id, user: user, tree: tree} do
     Req.Test.stub(Phod.Session.LlmStub, fn _conn -> raise "boom" end)
 
-    pid = start_and_allow(id, root)
+    pid = start_and_allow(user, tree)
     Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:#{id}")
 
     log =
@@ -114,10 +106,7 @@ defmodule Phod.SessionTest do
     assert log =~ "boom"
   end
 
-  test "the session log records the user, tool calls, tool results and replies", %{
-    id: id,
-    root: root
-  } do
+  test "the session log records the user, tool calls, tool results and replies", %{id: id, root: root, user: user, tree: tree} do
     log_path = Phod.Session.Log.path(root)
     on_exit(fn -> File.rm(log_path) end)
 
@@ -132,7 +121,7 @@ defmodule Phod.SessionTest do
 
     Req.Test.expect(Phod.Session.LlmStub, text_response("all listed"))
 
-    pid = start_and_allow(id, root)
+    pid = start_and_allow(user, tree)
     Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:#{id}")
 
     assert :ok = Phod.Session.send_message(id, "what files are here?", "Ada")
@@ -154,9 +143,56 @@ defmodule Phod.SessionTest do
     assert log =~ "### phod ·"
   end
 
-  test "ensure_started/2 called twice returns the same pid", %{id: id, root: root} do
-    assert {:ok, pid} = Phod.Session.ensure_started(id, root)
-    assert {:ok, ^pid} = Phod.Session.ensure_started(id, root)
+  test "ensure_started/3 called twice returns the same pid", %{user: user, tree: tree} do
+    assert {:ok, pid} = Phod.Session.ensure_started(user, tree)
+    assert {:ok, ^pid} = Phod.Session.ensure_started(user, tree)
+  end
+
+  describe "ensure_started/3 worktree format" do
+    setup do
+      base = Application.fetch_env!(:phod, :worktree_base)
+      on_exit(fn -> File.rm_rf!(Path.join(base, "octocat")) end)
+      :ok
+    end
+
+    test "starts a session on an existing <worktree_base>/<user>/<tree> directory" do
+      tree = unique_tree()
+      root = Phod.Session.worktree_root("octocat", tree)
+      File.mkdir_p!(root)
+
+      assert {:ok, pid} = Phod.Session.ensure_started("octocat", tree)
+      assert %{id: "octocat/" <> ^tree, worktree_root: ^root} = :sys.get_state(pid)
+    end
+
+    test "rejects a worktree directory that does not exist" do
+      tree = unique_tree()
+      root = Phod.Session.worktree_root("octocat", tree)
+
+      assert {:error, {:invalid_worktree_root, ^root}} =
+               Phod.Session.ensure_started("octocat", tree)
+
+      assert Phod.Session.whereis("octocat/" <> tree) == :error
+    end
+
+    test "rejects a tree that is nested, hidden, or escapes the base" do
+      nested = "a/b-#{System.unique_integer([:positive])}"
+      File.mkdir_p!(Phod.Session.worktree_root("octocat", nested))
+
+      assert {:error, {:invalid_worktree_root, _}} =
+               Phod.Session.ensure_started("octocat", nested)
+
+      assert {:error, {:invalid_worktree_root, _}} =
+               Phod.Session.ensure_started("octocat", "../../outside")
+    end
+
+    test "rejects a user that fails the GitHub naming rule" do
+      tree = unique_tree()
+      File.mkdir_p!(Phod.Session.worktree_root("-bad-user", tree))
+      on_exit(fn -> File.rm_rf!(Phod.Session.worktree_root("-bad-user", tree)) end)
+
+      assert {:error, {:invalid_worktree_root, _}} =
+               Phod.Session.ensure_started("-bad-user", tree)
+    end
   end
 
   test "get_snapshot/1 and send_message/2 report :not_found for an unknown id" do

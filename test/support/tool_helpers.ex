@@ -7,9 +7,14 @@ defmodule Phod.Tool.TestHelpers do
   # Shared helpers for the tool tests: a per-test worktree in tmp, plus small
   # conveniences for writing files and creating symlinks.
 
+  # Worktrees use the real layout, `<worktree_base>/<user>/<tree>`, so each
+  # test can also start a session on its worktree: `:id` is the session id
+  # (`"<user>/<tree>"`), and `:user` / `:tree` are the pieces it was built from.
   def setup_worktree(_ctx) do
-    root =
-      Path.join([System.tmp_dir!(), "phod-tool-test-#{System.unique_integer([:positive])}"])
+    n = System.unique_integer([:positive])
+    user = "tester"
+    tree = "wt-#{n}"
+    root = Path.join([Application.fetch_env!(:phod, :worktree_base), user, tree])
 
     File.mkdir_p!(root)
 
@@ -19,7 +24,7 @@ defmodule Phod.Tool.TestHelpers do
       File.rm(root <> ".md")
     end)
 
-    %{root: root}
+    %{root: root, user: user, tree: tree, id: Phod.Session.session_id(user, tree)}
   end
 
   def write(root, path, content) do

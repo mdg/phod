@@ -6,8 +6,8 @@ defmodule Phod.Session.TestHelpers do
   # to a different pid than the test process, so the Req.Test stub ownership
   # must be explicitly allowed for that pid too.
 
-  def start_and_allow(id, root) do
-    {:ok, pid} = Phod.Session.ensure_started(id, root)
+  def start_and_allow(user, tree) do
+    {:ok, pid} = Phod.Session.ensure_started(user, tree)
     Req.Test.allow(Phod.Session.LlmStub, self(), pid)
     pid
   end

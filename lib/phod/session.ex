@@ -19,16 +19,18 @@ defmodule Phod.Session do
 
   With `OPENCODE_API_KEY` exported in the shell before `iex -S mix`:
 
-      iex> {:ok, _pid} = Phod.Session.ensure_started("manual-1", "/path/to/worktree")
-      iex> Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:manual-1")
-      iex> Phod.Session.send_message("manual-1", "List the files in the project root")
+      iex> {:ok, _pid} = Phod.Session.ensure_started("octocat", "manual-1")
+      iex> Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:octocat/manual-1")
+      iex> Phod.Session.send_message("octocat/manual-1", "List the files in the project root")
       iex> flush()   # watch {:session_snapshot, _} arrive as the real Zen API responds
-      iex> Phod.Session.get_snapshot("manual-1")
+      iex> Phod.Session.get_snapshot("octocat/manual-1")
   """
 
   use GenServer
 
   require Logger
+
+  import Rexult, only: [rexult: 1, ok_and_then: 2, ok?: 1]
 
   alias Phod.Session.{Llm, Log, Loop}
 
@@ -49,26 +51,85 @@ defmodule Phod.Session do
   # Public API
 
   @doc """
-  The on-disk worktree path for a session id (`"<owner>/<name>"`), rooted
-  under the configured `:worktree_base` (e.g. `~/phod/tree/`).
+  The session id for a GitHub user and worktree name: `"<user>/<tree>"`.
   """
-  @spec worktree_root(String.t()) :: String.t()
-  def worktree_root(id) do
-    Path.join(Application.fetch_env!(:phod, :worktree_base), id)
+  @spec session_id(String.t(), String.t()) :: String.t()
+  def session_id(user, tree), do: "#{user}/#{tree}"
+
+  @doc """
+  The worktree path for a GitHub user and worktree name:
+  `<worktree_base>/<user>/<tree>`. `worktree_base` always comes from config.
+  """
+  @spec worktree_root(String.t(), String.t()) :: String.t()
+  def worktree_root(user, tree) do
+    Path.join([Application.fetch_env!(:phod, :worktree_base), user, tree])
   end
 
   @doc """
-  Starts a session for `worktree_root` under `id` if one isn't already
+  Starts a session for a GitHub user and worktree name, if one isn't already
   running, otherwise returns the existing process. Idempotent.
+
+  The session id is `session_id/2` and the worktree is `worktree_root/2`. The
+  worktree must be an existing directory in the `<worktree_base>/<user>/<tree>`
+  layout; anything else returns `{:error, {:invalid_worktree_root, root}}`
+  without starting a process.
   """
   @spec ensure_started(String.t(), String.t(), keyword()) ::
           {:ok, pid()} | {:error, term()}
-  def ensure_started(id, worktree_root, opts \\ []) do
-    case Phod.Session.Supervisor.start_session(id, worktree_root, opts) do
-      {:ok, pid} -> {:ok, pid}
-      {:error, {:already_started, pid}} -> {:ok, pid}
-      {:error, reason} -> {:error, reason}
+  def ensure_started(user, tree, opts \\ []) do
+    id = session_id(user, tree)
+    root = Path.expand(worktree_root(user, tree))
+
+    if valid_worktree_root?(root) do
+      case Phod.Session.Supervisor.start_session(id, root, opts) do
+        {:ok, pid} -> {:ok, pid}
+        {:error, {:already_started, pid}} -> {:ok, pid}
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      {:error, {:invalid_worktree_root, root}}
     end
+  end
+
+  # GitHub usernames: alphanumerics and hyphens, at most 39 characters, not
+  # starting with a hyphen. Worktree names: no leading dot, so hidden
+  # directories and `..` never qualify.
+  @github_user ~r/\A[A-Za-z0-9][A-Za-z0-9-]{0,38}\z/
+  @worktree_name ~r/\A[A-Za-z0-9][A-Za-z0-9._-]*\z/
+
+  @doc """
+  Pure check that `session_name` is `"<github_user>/<worktree_name>"`: exactly
+  two segments, each matching its naming rule. Touches no filesystem.
+  """
+  @spec valid_session_name?(term()) :: boolean()
+  def valid_session_name?(session_name) when is_binary(session_name) do
+    case String.split(session_name, "/") do
+      [user, name] -> Regex.match?(@github_user, user) and Regex.match?(@worktree_name, name)
+      _ -> false
+    end
+  end
+
+  def valid_session_name?(_session_name), do: false
+
+  @doc """
+  True when `root` is `<worktree_base>/<github_user>/<worktree_name>` and is an
+  existing directory. Expects an absolute, expanded path.
+  """
+  @spec valid_worktree_root?(String.t()) :: boolean()
+  def valid_worktree_root?(root) do
+    base = Path.expand(Application.fetch_env!(:phod, :worktree_base))
+
+    root
+    |> Path.relative_to(base)
+    |> Path.safe_relative(base)
+    |> rexult()
+    |> ok_and_then(fn rel ->
+      if valid_session_name?(rel), do: {:ok, rel}, else: {:error, :invalid_name}
+    end)
+    |> ok_and_then(fn _rel ->
+      if File.dir?(root), do: {:ok, root}, else: {:error, :not_a_directory}
+    end)
+    |> ok?()
   end
 
   @spec whereis(String.t()) :: {:ok, pid()} | :error

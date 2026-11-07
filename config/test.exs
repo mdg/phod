@@ -21,6 +21,9 @@ config :phod, PhodWeb.Endpoint,
   secret_key_base: "yuosZIMB0RYvxd0GbRl5K3vglv3xekusC7PtgiwKnL5wosJIjvTCr79SQAZb8zkp",
   server: false
 
+# Session worktrees must live under worktree_base, so tests use a tmp base
+config :phod, worktree_base: Path.join(System.tmp_dir!(), "phod-test-tree")
+
 # In test we don't send emails
 config :phod, Phod.Mailer, adapter: Swoosh.Adapters.Test
 

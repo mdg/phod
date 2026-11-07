@@ -92,6 +92,7 @@ custom classes must fully style the input
 - If an invalid function parameter can be pattern matched, use a function head matching the case to
   catch the input and return an error.
 - Use the Rexult module to handle ok and error tuple results
+- **Never** use elixir "with" expression. Use the Rexult module instead.
 
 ## Mix guidelines
 

@@ -53,7 +53,7 @@ defmodule Phod.Tool.Input.Path do
   def validate(path, %{session_root: root} = opts) do
     allow_new_path? = Map.get(opts, :allow_new_path, false)
 
-    resolve(root, path, allow_new_path?)
+    resolve(root, path, allow_new_path?, follow_last?)
   end
 
   @doc """

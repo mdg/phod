@@ -7,12 +7,14 @@ defmodule Phod.Tool do
   import Rexult
   alias __MODULE__.Input
 
+  # Keep these in alphabetical order
   @tools %{
     __MODULE__.ElixirScript => false,
     __MODULE__.Grep => true,
     __MODULE__.ReadFile => true,
     __MODULE__.ListFiles => true,
     __MODULE__.Patch => true,
+    __MODULE__.Rm => true,
     __MODULE__.Rustc => true,
   }
 

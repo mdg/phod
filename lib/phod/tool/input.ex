@@ -72,6 +72,23 @@ defmodule Phod.Tool.Input do
   end
 
   @doc """
+  A list-of-paths parameter
+
+  opts:
+  required bool
+  """
+  def paths(name, desc, opts \\ []) do
+    %Param{
+      type: __MODULE__.Paths,
+      name: name,
+      desc: desc,
+      required?: Keyword.get(opts, :required, false),
+      default: Keyword.get(opts, :default, []),
+      opts: Keyword.drop(opts, [:required, :default]),
+    }
+  end
+
+  @doc """
   A boolean parameter
 
   opts:

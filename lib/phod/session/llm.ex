@@ -27,11 +27,12 @@ defmodule Phod.Session.Llm do
   @doc """
   Calls the Messages API. `instructions` is the project's `AGENTS.md` text, or
   `nil` when the worktree has none. It goes in its own system block, marked
-  for prompt caching, so repeated rounds of a run don't re-bill it.
+  for prompt caching, so repeated rounds of a run don't re-bill it. `tools`
+  defaults to `Phod.Tool.anthropic_tools/0`.
   """
-  @spec complete([message()], String.t() | nil) ::
+  @spec complete([message()], String.t() | nil, [map()] | nil) ::
           {:ok, %{content: [block()], stop_reason: String.t() | nil}} | {:error, String.t()}
-  def complete(messages, instructions \\ nil) do
+  def complete(messages, instructions \\ nil, tools \\ nil) do
     cfg = config()
 
     if cfg[:api_key] in [nil, ""] do
@@ -41,7 +42,7 @@ defmodule Phod.Session.Llm do
         "model" => cfg[:model],
         "system" => system_blocks(instructions),
         "messages" => messages,
-        "tools" => Phod.Tool.anthropic_tools(),
+        "tools" => tools || Phod.Tool.anthropic_tools(),
         "max_tokens" => cfg[:max_tokens],
         "stream" => false
       }

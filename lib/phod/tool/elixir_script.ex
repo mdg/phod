@@ -74,9 +74,11 @@ defmodule Phod.Tool.ElixirScript do
   end
 
   @impl Tool.B
-  def run(%{script: script}, %{session_root: root}) do
+  def run(%{script: script}, %{session_root: root} = session_opts) do
+    roots = Map.get(session_opts, :session_roots, [root])
+
     with {:ok, toolchain} <- resolve_toolchain() do
-      args = bwrap_args(toolchain, root, script)
+      args = bwrap_args(toolchain, root, roots, script)
 
       case run_sandboxed(args) do
         {:ok, %Rambo{out: out, err: err, status: status}} ->
@@ -166,12 +168,12 @@ defmodule Phod.Tool.ElixirScript do
   @ro_bind_roots ["/usr", "/lib", "/bin"]
   @optional_ro_bind_roots ["/lib64"]
 
-  defp bwrap_args(toolchain, root, script) do
+  # Every session worktree is bound read-write at its own path; the script's
+  # working directory is the selected one, `root`.
+  defp bwrap_args(toolchain, root, roots, script) do
     ro_binds(toolchain) ++
+      Enum.flat_map(roots, &["--bind", &1, &1]) ++
       [
-        "--bind",
-        root,
-        root,
         "--proc",
         "/proc",
         "--dev",

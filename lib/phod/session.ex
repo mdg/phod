@@ -36,7 +36,8 @@ defmodule Phod.Session do
 
   defstruct [
     :id,
-    :worktree_root,
+    # `[{name, root}]`, primary first; the primary's name is the session id
+    :worktrees,
     :idle_timeout,
     :log_path,
     messages: [],
@@ -132,6 +133,20 @@ defmodule Phod.Session do
     |> ok?()
   end
 
+  @doc """
+  Adds another worktree to a running session, as `<worktree_base>/<user>/<tree>`.
+  The name the tools use is `session_id/2` for it. Rejected with `:busy` during
+  a run, so every run sees a fixed set of worktrees.
+  """
+  @spec add_worktree(String.t(), String.t(), String.t()) ::
+          :ok | {:error, term()}
+  def add_worktree(id, user, tree) do
+    case whereis(id) do
+      {:ok, pid} -> GenServer.call(pid, {:add_worktree, user, tree})
+      :error -> {:error, :not_found}
+    end
+  end
+
   @spec whereis(String.t()) :: {:ok, pid()} | :error
   def whereis(id) do
     case Registry.lookup(Phod.Session.Registry, id) do
@@ -180,7 +195,7 @@ defmodule Phod.Session do
 
       state = %__MODULE__{
         id: id,
-        worktree_root: worktree_root,
+        worktrees: [{id, worktree_root}],
         idle_timeout: idle_timeout,
         log_path: Log.path(worktree_root)
       }
@@ -198,6 +213,28 @@ defmodule Phod.Session do
     {:reply, {:error, :busy}, state, state.idle_timeout}
   end
 
+  def handle_call({:add_worktree, _user, _tree}, _from, %__MODULE__{status: :running} = state) do
+    {:reply, {:error, :busy}, state, state.idle_timeout}
+  end
+
+  def handle_call({:add_worktree, user, tree}, _from, state) do
+    name = session_id(user, tree)
+    root = Path.expand(worktree_root(user, tree))
+
+    cond do
+      List.keymember?(state.worktrees, name, 0) ->
+        {:reply, {:error, :already_added}, state, state.idle_timeout}
+
+      not valid_worktree_root?(root) ->
+        {:reply, {:error, {:invalid_worktree_root, root}}, state, state.idle_timeout}
+
+      true ->
+        state = %{state | worktrees: state.worktrees ++ [{name, root}]}
+        broadcast(state)
+        {:reply, :ok, state, state.idle_timeout}
+    end
+  end
+
   def handle_call({:send_message, text, sender}, _from, %__MODULE__{status: :idle} = state) do
     user_msg = %{"role" => "user", "content" => [%{"type" => "text", "text" => text}]}
     new_messages = state.messages ++ [user_msg]
@@ -206,11 +243,11 @@ defmodule Phod.Session do
     broadcast(state)
 
     parent = self()
-    root = state.worktree_root
+    worktrees = state.worktrees
 
     task =
       Task.Supervisor.async_nolink(Phod.Session.TaskSupervisor, fn ->
-        Loop.run(new_messages, root, fn event -> send(parent, {:loop_event, event}) end)
+        Loop.run(new_messages, worktrees, fn event -> send(parent, {:loop_event, event}) end)
       end)
 
     allow_req_test(task.pid)
@@ -268,9 +305,13 @@ defmodule Phod.Session do
   end
 
   defp snapshot(state) do
+    {_primary, primary_root} = hd(state.worktrees)
+
     %{
       id: state.id,
-      worktree_root: state.worktree_root,
+      # the primary worktree, which the file tree shows
+      worktree_root: primary_root,
+      worktrees: Enum.map(state.worktrees, &elem(&1, 0)),
       status: state.status,
       messages: state.messages,
       edits: state.edits,

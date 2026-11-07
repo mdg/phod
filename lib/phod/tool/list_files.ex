@@ -23,7 +23,10 @@ defmodule Phod.Tool.ListFiles do
 
   @impl Tool.B
   def params() do
-    [Input.path()]
+    [
+      Tool.Input.path(),
+      Tool.Input.bool("all", "Include hidden (dot) files"),
+    ]
   end
 
   def input_schema do
@@ -45,23 +48,24 @@ defmodule Phod.Tool.ListFiles do
   end
 
   @impl Tool.B
-  def run(%{path, all: all}) do
-    args = ["-lF"] ++ if(input.all, do: ["-A"], else: []) ++ [input.full_path]
+  def run(%{path: path, all: all}, %{session_root: root}) do
+    full_path = Path.join(root, path)
+    args = ["-lF"] ++ if(all, do: ["-A"], else: []) ++ [full_path]
 
     case Rambo.run("ls", args, log: false) do
       {:ok, %Rambo{out: output}} ->
         entries =
           output
           |> parse_ls()
-          |> attach_mime_types(input.full_path)
+          |> attach_mime_types(full_path)
 
-        {:ok, %{path: input.path, entries: entries}}
+        {:ok, %{path: path, entries: entries}}
 
       {:error, %Rambo{status: status, out: out, err: err}} ->
-        {:error, "could not list #{inspect(input.path)}: #{status} #{String.trim(out <> err)}"}
+        {:error, "could not list #{inspect(path)}: #{status} #{String.trim(out <> err)}"}
 
       {:error, reason} ->
-        {:error, "could not list #{inspect(input.path)}: #{reason}"}
+        {:error, "could not list #{inspect(path)}: #{reason}"}
     end
   end
 

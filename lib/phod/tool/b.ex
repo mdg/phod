@@ -19,5 +19,5 @@ defmodule Phod.Tool.B do
   @callback name() :: String.t()
   @callback description() :: String.t()
   @callback params() :: [Tool.Input.Param.t()]
-  @callback run(input :: map()) :: Rexult.t()
+  @callback run(input :: map(), session_opts :: map()) :: Rexult.t()
 end

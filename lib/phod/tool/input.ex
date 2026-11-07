@@ -70,6 +70,21 @@ defmodule Phod.Tool.Input do
     }
   end
 
+  @doc """
+  A boolean parameter
+
+  opts:
+  required bool
+  """
+  def bool(name, desc, opts \\ []) do
+    %Param{
+      type: __MODULE__.Bool,
+      name: name,
+      desc: desc,
+      required?: Keyword.get(opts, :required, false),
+    }
+  end
+
   def validate_params(%{} = input, params, %{} = session_opts) when is_list(params) do
     params
     |> Enum.map(fn %{name: name} = param ->
@@ -104,14 +119,6 @@ defmodule Phod.Tool.Input do
       "" -> {:error, "cannot run empty script"}
       script -> {:ok, %{input | script: script}}
     end
-  end
-
-  def validate(:all, %__MODULE__{all: all} = input) when is_boolean(all) do
-    {:ok, input}
-  end
-
-  def validate(:all, %__MODULE__{}) do
-    {:error, "invalid all"}
   end
 
   def validate(:patterns, %__MODULE__{patterns: p}) when not is_list(p) do

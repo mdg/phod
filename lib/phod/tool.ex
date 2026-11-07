@@ -31,7 +31,8 @@ defmodule Phod.Tool do
           ]
   def specs do
     for {tool, true} <- @tools do
-      %{name: tool.name(), description: tool.description(), input_schema: tool.input_schema()}
+      schema = Input.to_schema(tool.params())
+      %{name: tool.name(), description: tool.description(), input_schema: schema}
     end
   end
 
@@ -50,12 +51,11 @@ defmodule Phod.Tool do
   def run(name, root, input) do
     case Map.fetch(@names, name) do
       {:ok, tool} ->
-        params = tool.params()
+        session_opts = %{session_root: root}
 
         input
-        |> Input.from_map(root)
-        |> Input.validate_params(tool.tool_fields())
-        |> ok_and_then(&tool.run/1)
+        |> Input.validate_params(tool.params(), session_opts)
+        |> ok_and_then(&tool.run(&1, session_opts))
 
       :error ->
         {:error, "unknown tool: #{inspect(name)}"}

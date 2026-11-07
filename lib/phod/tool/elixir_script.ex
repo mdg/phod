@@ -63,9 +63,16 @@ defmodule Phod.Tool.ElixirScript do
     """
 
   @impl Tool.B
-  def tool_fields(), do: [:script]
+  def params() do
+    [
+      Tool.Input.string(
+        :script,
+        "Elixir source to run with `elixir -e`, using the worktree root as its working directory.",
+        required: true
+      ),
+    ]
+  end
 
-  @impl Tool.B
   def input_schema do
     %{
       "type" => "object",
@@ -83,7 +90,7 @@ defmodule Phod.Tool.ElixirScript do
   end
 
   @impl Tool.B
-  def run(%Tool.Input{script: script, root: root}) do
+  def run(%{script: script}, %{session_root: root}) do
     with {:ok, toolchain} <- resolve_toolchain() do
       args = bwrap_args(toolchain, root, script)
 

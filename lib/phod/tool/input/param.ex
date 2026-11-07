@@ -31,8 +31,12 @@ defmodule Phod.Tool.Input.Param do
   end
 
   def to_schema(%__MODULE__{} = param) do
-    %{
-      type: param.type.schema_type(),
-    }
+    base = %{type: param.type.schema_type()}
+
+    if Code.ensure_loaded?(param.type) and function_exported?(param.type, :item_type, 0) do
+      Map.put(base, :items, %{type: param.type.item_type()})
+    else
+      base
+    end
   end
 end

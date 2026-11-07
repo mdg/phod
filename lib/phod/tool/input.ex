@@ -23,7 +23,7 @@ defmodule Phod.Tool.Input do
       params
       |> Enum.map(fn param ->
         schema = Param.to_schema(param)
-        {param.name(), schema}
+        {param.type.name(), schema}
       end)
       |> Map.new()
 
@@ -51,8 +51,8 @@ defmodule Phod.Tool.Input do
 
   See path/4 for more options
   """
-  def path() do
-    path(:path, nil, required: true)
+  def path(opts \\ []) do
+    path(:path, nil, [{:required, true} | opts])
   end
 
   @doc """
@@ -67,6 +67,7 @@ defmodule Phod.Tool.Input do
       name: name,
       desc: desc,
       required?: Keyword.get(opts, :required, false),
+      opts: Keyword.drop(opts, [:required]),
     }
   end
 
@@ -85,55 +86,85 @@ defmodule Phod.Tool.Input do
     }
   end
 
-  def validate_params(%{} = input, params, %{} = session_opts) when is_list(params) do
-    params
-    |> Enum.map(fn %{name: name} = param ->
-      input_val = Map.get(input, name)
+  @doc """
+  A string parameter
 
-      if input_val == nil and param.required? do
-        {:error, "#{name} is required"}
-      else
-        opts = Map.merge(input.opts, session_opts)
-        param.type.validate(input, opts)
+  opts:
+  required bool
+  """
+  def string(name, desc, opts \\ []) do
+    %Param{
+      type: __MODULE__.String,
+      name: name,
+      desc: desc,
+      required?: Keyword.get(opts, :required, false),
+      opts: Keyword.drop(opts, [:required]),
+    }
+  end
+
+  @doc """
+  A diff parameter
+
+  opts:
+  required bool
+  """
+  def diff() do
+    %Param{
+      type: __MODULE__.Diff,
+      name: :diff,
+      desc: "A unified diff to apply to the file.",
+      required?: true,
+    }
+  end
+
+  @doc """
+  Shorthand for default single, required patterns parameter
+
+  See patterns/3 for more options
+  """
+  def patterns(opts \\ []) do
+    patterns(:patterns, nil, [{:required, true} | opts])
+  end
+
+  @doc """
+  A list of regular expression patterns
+
+  opts:
+  required bool
+  """
+  def patterns(name, desc, opts \\ []) do
+    %Param{
+      type: __MODULE__.Patterns,
+      name: name,
+      desc: desc,
+      required?: Keyword.get(opts, :required, false),
+      opts: Keyword.drop(opts, [:required]),
+    }
+  end
+
+  @doc """
+  Validates the parameter values the LLM sent, one per declared param.
+
+  `input` is the LLM's map of arguments (string keys, as in JSON). Each
+  param's value is passed to its type's `validate/2`. Returns
+  `{:ok, %{name => value}}` keyed by param name, or the first error.
+  Optional params the LLM omitted come back as `nil`.
+  """
+  @spec validate_params(map(), [Param.t()], map()) :: Rexult.t()
+  def validate_params(%{} = input, params, %{} = session_opts) when is_list(params) do
+    Enum.reduce_while(params, {:ok, %{}}, fn param, {:ok, acc} ->
+      case validate_param(input, param, session_opts) do
+        {:ok, value} -> {:cont, {:ok, Map.put(acc, param.name, value)}}
+        {:error, _msg} = error -> {:halt, error}
       end
     end)
   end
 
-  def validate(:diff, %__MODULE__{diff: diff}) when not is_binary(diff) do
-    {:error, "invalid diff"}
-  end
-
-  def validate(:diff, %__MODULE__{} = input) do
-    case String.trim(input.diff) do
-      "" -> {:error, "cannot apply empty diff"}
-      diff -> {:ok, %{input | diff: diff}}
-    end
-  end
-
-  def validate(:script, %__MODULE__{script: script}) when not is_binary(script) do
-    {:error, "invalid script"}
-  end
-
-  def validate(:script, %__MODULE__{} = input) do
-    case String.trim(input.script) do
-      "" -> {:error, "cannot run empty script"}
-      script -> {:ok, %{input | script: script}}
-    end
-  end
-
-  def validate(:patterns, %__MODULE__{patterns: p}) when not is_list(p) do
-    {:error, "invalid patterns"}
-  end
-
-  def validate(:patterns, %__MODULE__{patterns: []}) do
-    {:error, "invalid empty patterns"}
-  end
-
-  def validate(:patterns, %__MODULE__{patterns: patterns} = input) do
-    if Enum.all?(patterns, &(is_binary(&1) and &1 != "")) do
-      {:ok, input}
-    else
-      {:error, "invalid empty patterns"}
+  defp validate_param(input, %Param{} = param, session_opts) do
+    case Map.get(input, Atom.to_string(param.name)) do
+      nil when param.required? -> {:error, "#{param.name} is required"}
+      nil -> {:ok, nil}
+      value -> param.type.validate(value, Map.merge(Map.new(param.opts), session_opts))
     end
   end
 end

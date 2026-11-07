@@ -23,31 +23,16 @@ defmodule Phod.Tool.Patch do
     """
 
   @impl Tool.B
-  def tool_fields do
-    [:allow_new_path, :path, :diff]
+  def params do
+    [
+      Tool.Input.path(),
+      Tool.Input.diff(),
+    ]
   end
 
   @impl Tool.B
-  def input_schema do
-    %{
-      "type" => "object",
-      "properties" => %{
-        "path" => %{
-          "type" => "string",
-          "description" =>
-            "File path relative to the worktree root. May be a path that does not yet exist when creating a file."
-        },
-        "diff" => %{
-          "type" => "string",
-          "description" => "A unified diff to apply to the file."
-        }
-      },
-      "required" => ["path", "diff"]
-    }
-  end
-
-  @impl Tool.B
-  def run(%Tool.Input{full_path: full_path, path: path, diff: diff}) do
+  def run(%{path: path, diff: diff}, %{session_root: root}) do
+    full_path = Path.join(root, path)
     created? = not File.exists?(full_path)
 
     case Rambo.run("patch", ["--batch", "--forward", "--", full_path],

@@ -26,11 +26,13 @@ defmodule Phod.Tool.Grep do
     """
 
   @impl Tool.B
-  def tool_fields() do
-    [:path, :patterns]
+  def params() do
+    [
+      Tool.Input.path(),
+      Tool.Input.patterns(),
+    ]
   end
 
-  @impl Tool.B
   def input_schema do
     %{
       "type" => "object",
@@ -53,11 +55,11 @@ defmodule Phod.Tool.Grep do
   end
 
   @impl Tool.B
-  def run(%Tool.Input{patterns: patterns} = input) do
-    args = ["--json"] ++ Enum.flat_map(patterns, &["-e", &1]) ++ ["--", input.path]
+  def run(%{path: path, patterns: patterns}, %{session_root: root}) do
+    args = ["--json"] ++ Enum.flat_map(patterns, &["-e", &1]) ++ ["--", path]
 
     {output, exit_code} =
-      System.cmd("rg", args, cd: input.root, stderr_to_stdout: true)
+      System.cmd("rg", args, cd: root, stderr_to_stdout: true)
 
     case exit_code do
       0 ->

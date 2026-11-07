@@ -14,7 +14,9 @@ defmodule Phod.Tool.Rustc do
   @behaviour Tool.B
 
   @impl Tool.B
-  def name, do: "rustc"
+  def name do
+    "rustc"
+  end
 
   @impl Tool.B
   def description,
@@ -26,24 +28,14 @@ defmodule Phod.Tool.Rustc do
     """
 
   @impl Tool.B
-  def tool_fields, do: [:path]
-
-  @impl Tool.B
-  def input_schema do
-    %{
-      "type" => "object",
-      "properties" => %{
-        "path" => %{
-          "type" => "string",
-          "description" => "Path to a Rust source file, relative to the worktree root."
-        }
-      },
-      "required" => ["path"]
-    }
+  def params do
+    [
+      Tool.Input.path(),
+    ]
   end
 
   @impl Tool.B
-  def run(%Tool.Input{root: root, path: path}) do
+  def run(%{root: root, path: path}, _opts) do
     case Rambo.run("rustc", [path], cd: root, log: false) do
       {:ok, %Rambo{err: err, out: out}} ->
         {:ok, %{path: path, success: true, diagnostics: String.trim(err <> out)}}

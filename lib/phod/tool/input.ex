@@ -21,21 +21,18 @@ defmodule Phod.Tool.Input do
   def to_schema(params) do
     props =
       params
-      |> Enum.map(fn param ->
-        schema = Param.to_schema(param)
-        {param.type.name(), schema}
-      end)
+      |> Enum.map(fn param -> {to_string(param.name), Param.to_schema(param)} end)
       |> Map.new()
 
     required =
       params
       |> Enum.filter(& &1.required?)
-      |> Enum.map(& &1.name)
+      |> Enum.map(&to_string(&1.name))
 
     %{
-      type: "object",
-      properties: props,
-      required: required,
+      "type" => "object",
+      "properties" => props,
+      "required" => required,
     }
   end
 

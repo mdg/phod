@@ -84,7 +84,7 @@ defmodule PhodWeb.SessionLive.Components do
     ~H"""
     <div class="mx-auto max-w-md space-y-4 py-12 text-center" data-role="not-found">
       <h1 class="text-xl font-semibold">Session "{@id}" hasn't been started</h1>
-      <p class="opacity-70">Start it from the home page by pointing it at a worktree.</p>
+      <p class="opacity-70">There is no worktree directory for it at <code phx-no-curly-interpolation>&lt;worktree_base&gt;/&lt;user&gt;/&lt;tree&gt;</code>.</p>
       <.button navigate={~p"/"} variant="primary">Go to home</.button>
     </div>
     """

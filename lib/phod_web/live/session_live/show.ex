@@ -24,11 +24,13 @@ defmodule PhodWeb.SessionLive.Show do
 
   @impl true
   def mount(%{"owner" => owner, "tree" => tree}, session, socket) do
-    id = "#{owner}/#{tree}"
+    id = Session.session_id(owner, tree)
     join_path = ~p"/sessions/#{owner}/#{tree}/join"
 
-    case Session.whereis(id) do
-      :error ->
+    # Starts the session if its worktree is valid; idempotent when it is
+    # already running. Only an invalid worktree leaves the view not-found.
+    case Session.ensure_started(owner, tree) do
+      {:error, _reason} ->
         {:ok, assign(socket, id: id, view: :not_found)}
 
       {:ok, _pid} ->

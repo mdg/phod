@@ -21,9 +21,22 @@ defmodule PhodWeb.SessionLive.ShowTest do
     end
   end
 
-  test "renders a not-found view for a session that hasn't been started", %{conn: conn, user: owner, tree: tree} do
+  test "renders a not-found view when there is no worktree directory for the session",
+       %{conn: conn, user: owner} do
+    tree = "no-such-tree-#{System.unique_integer([:positive])}"
     {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
     assert has_element?(view, "[data-role=not-found]")
+    assert Phod.Session.whereis(Phod.Session.session_id(owner, tree)) == :error
+  end
+
+  test "starts a session for a valid worktree that isn't running yet",
+       %{conn: conn, user: owner, tree: tree} do
+    assert Phod.Session.whereis(Phod.Session.session_id(owner, tree)) == :error
+
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
+
+    refute has_element?(view, "[data-role=not-found]")
+    assert {:ok, _pid} = Phod.Session.whereis(Phod.Session.session_id(owner, tree))
   end
 
   test "renders a join prompt when the browser has no display name yet", %{conn: conn, user: owner, tree: tree} do

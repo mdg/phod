@@ -137,7 +137,7 @@ defmodule Phod.Tool.ListFilesTest do
 
   test "errors on missing paths", %{root: root} do
     assert {:error, msg} = Tool.run("list_files", root, %{"path" => "nope"})
-    assert msg == "invalid path"
+    assert msg == "path: invalid path"
   end
 
   describe "all parameter" do
@@ -170,7 +170,7 @@ defmodule Phod.Tool.ListFilesTest do
 
     test "errors when all is not a boolean", %{root: root} do
       assert {:error, msg} = Tool.run("list_files", root, %{"all" => "true"})
-      assert msg == ~S[invalid boolean, got: "true"]
+      assert msg == ~S[all: invalid boolean, got: "true"]
     end
   end
 end

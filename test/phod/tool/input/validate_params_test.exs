@@ -32,7 +32,7 @@ defmodule Phod.Tool.Input.ValidateParamsTest do
   end
 
   test "a value the type rejects is an error" do
-    assert {:error, "invalid empty string"} =
+    assert {:error, "script: invalid empty string"} =
              Input.validate_params(%{"script" => "  "}, params(), @session)
 
     assert {:error, msg} =

@@ -17,7 +17,7 @@ defmodule Phod.Tool.ReadFileTest do
 
   test "errors on missing files", %{root: root} do
     assert {:error, msg} = Tool.run("read_file", root, %{"path" => "nope.txt"})
-    assert msg == "invalid path"
+    assert msg == "path: invalid path"
   end
 
   test "errors on directories with a helpful hint", %{root: root} do

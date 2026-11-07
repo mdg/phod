@@ -3,6 +3,8 @@ defmodule Phod.Tool.Input do
   The input type for Tool calls
   """
 
+  import Rexult
+
   alias __MODULE__.Param
 
   defdelegate required(param), to: Param
@@ -163,7 +165,11 @@ defmodule Phod.Tool.Input do
     case Map.get(input, Atom.to_string(param.name)) do
       nil when param.required? -> {:error, "#{param.name} is required"}
       nil -> {:ok, param.default}
-      value -> param.type.validate(value, Map.merge(Map.new(param.opts), session_opts))
+      value ->
+        param.type.validate(value, Map.merge(Map.new(param.opts), session_opts))
+        |> map_err(fn msg ->
+          "#{param.name}: #{msg}"
+        end)
     end
   end
 end

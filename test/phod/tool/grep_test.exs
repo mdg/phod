@@ -49,11 +49,11 @@ defmodule Phod.Tool.GrepTest do
 
   test "errors on invalid regex patterns", %{root: root} do
     assert {:error, msg} = Tool.run("grep", root, %{"patterns" => ["("]})
-    assert msg =~ "unclosed group"
+    assert msg == ~S[invalid regex "(": {~c"missing closing parenthesis", 1}]
   end
 
   test "errors on empty patterns", %{root: root} do
     assert {:error, msg} = Tool.run("grep", root, %{"patterns" => [""]})
-    assert msg =~ "invalid empty patterns"
+    assert msg =~ "invalid empty pattern"
   end
 end

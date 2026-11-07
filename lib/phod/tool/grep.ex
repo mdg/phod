@@ -28,50 +28,29 @@ defmodule Phod.Tool.Grep do
   @impl Tool.B
   def params() do
     [
-      Tool.Input.path(),
+      Tool.Input.path(required: false) |> Tool.Input.optional("."),
       Tool.Input.patterns(),
     ]
-  end
-
-  def input_schema do
-    %{
-      "type" => "object",
-      "properties" => %{
-        "patterns" => %{
-          "type" => "array",
-          "items" => %{"type" => "string"},
-          "description" =>
-            "One or more regular expressions (Rust regex syntax, as used by ripgrep). " <>
-              "Matches are the union of all given patterns."
-        },
-        "path" => %{
-          "type" => "string",
-          "description" =>
-            "Subdirectory to search, relative to the worktree root. Defaults to the whole worktree."
-        }
-      },
-      "required" => ["patterns"]
-    }
   end
 
   @impl Tool.B
   def run(%{path: path, patterns: patterns}, %{session_root: root}) do
     args = ["--json"] ++ Enum.flat_map(patterns, &["-e", &1]) ++ ["--", path]
 
-    {output, exit_code} =
-      System.cmd("rg", args, cd: root, stderr_to_stdout: true)
-
-    case exit_code do
-      0 ->
+    case Rambo.run("rg", args, cd: root, log: false) do
+      {:ok, %Rambo{out: output}} ->
         {:ok, output}
 
       # no matches: treat as an ok result with no output
-      1 ->
+      {:error, %Rambo{status: 1}} ->
         {:ok, ""}
 
-      err ->
-        Logger.error("grep error", err: err)
-        {:error, output}
+      {:error, %Rambo{status: status, err: err}} ->
+        Logger.error("grep error", status: status)
+        {:error, err}
+
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason}
     end
     |> map_ok(&parse_output/1)
     |> map_err(&normalize_rg_error/1)

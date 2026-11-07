@@ -31,9 +31,8 @@ defmodule Phod.Tool.Input.Patterns do
   end
 
   @doc """
-  Validate that the input carries a non-empty list of non-empty strings, each
-  of which compiles as a regular expression. The list shape is checked by
-  `Phod.Tool.Input.validate(:patterns, input)`.
+  Validate that the value is a non-empty list of non-empty strings, each of
+  which compiles as a regular expression. Reports the first bad entry.
   """
   @impl Input.Type
   def validate(patterns, opts)
@@ -47,27 +46,26 @@ defmodule Phod.Tool.Input.Patterns do
   end
 
   def validate(patterns, _opts) do
-    if Enum.all?(patterns, &valid_pattern?/1) do
-      {:ok, patterns}
-    else
-      {:error, "invalid params"}
-    end
+    Enum.find_value(patterns, {:ok, patterns}, &check_pattern/1)
   end
 
-  def valid_pattern?(pattern)
+  @doc """
+  `nil` means the entry is fine, so `Enum.find_value/3` moves on to the next.
+  """
+  def check_pattern(pattern)
 
-  def valid_pattern?(pattern) when not is_binary(pattern) do
-    {:error, "invalid pattern"}
-  end
-
-  def valid_pattern?("") do
+  def check_pattern("") do
     {:error, "invalid empty pattern"}
   end
 
-  def valid_pattern?(pattern) do
+  def check_pattern(pattern) when not is_binary(pattern) do
+    {:error, "invalid pattern"}
+  end
+
+  def check_pattern(pattern) do
     case Regex.compile(pattern) do
-      {:ok, _regex} -> true
-      {:error, _reason} -> false
+      {:ok, _regex} -> nil
+      {:error, reason} -> {:error, "invalid regex #{inspect(pattern)}: #{inspect(reason)}"}
     end
   end
 end

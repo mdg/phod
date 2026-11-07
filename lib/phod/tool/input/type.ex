@@ -6,5 +6,5 @@ defmodule Phod.Tool.Input.Type do
   @callback name() :: atom()
   @callback desc() :: String.t()
   @callback validate(term(), map()) :: Rexult.t()
-  @callback schema_type :: String.t()
+  @callback schema_type() :: String.t()
 end

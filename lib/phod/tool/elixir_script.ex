@@ -73,22 +73,6 @@ defmodule Phod.Tool.ElixirScript do
     ]
   end
 
-  def input_schema do
-    %{
-      "type" => "object",
-      "properties" => %{
-        "script" => %{
-          "type" => "string",
-          "description" =>
-            "Elixir source to run with `elixir -e`. Runs with the worktree " <>
-              "root as its working directory. Standard library only - no " <>
-              "network, so Mix.install/2 is unavailable."
-        }
-      },
-      "required" => ["script"]
-    }
-  end
-
   @impl Tool.B
   def run(%{script: script}, %{session_root: root}) do
     with {:ok, toolchain} <- resolve_toolchain() do

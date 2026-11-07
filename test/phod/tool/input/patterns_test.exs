@@ -25,8 +25,8 @@ defmodule Phod.Tool.Input.PatternsTest do
   end
 
   test "rejects empty or non-string entries" do
-    assert {:error, "invalid empty patterns"} = Patterns.validate(["foo", ""], %{})
-    assert {:error, "invalid empty patterns"} = Patterns.validate(["foo", 1], %{})
+    assert {:error, "invalid empty pattern"} = Patterns.validate(["foo", ""], %{})
+    assert {:error, "invalid pattern"} = Patterns.validate(["foo", 1], %{})
   end
 
   test "rejects an entry that is not a valid regular expression" do

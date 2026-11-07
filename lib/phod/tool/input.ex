@@ -67,7 +67,8 @@ defmodule Phod.Tool.Input do
       name: name,
       desc: desc,
       required?: Keyword.get(opts, :required, false),
-      opts: Keyword.drop(opts, [:required]),
+      default: Keyword.get(opts, :default),
+      opts: Keyword.drop(opts, [:required, :default]),
     }
   end
 
@@ -148,7 +149,8 @@ defmodule Phod.Tool.Input do
   `input` is the LLM's map of arguments (string keys, as in JSON). Each
   param's value is passed to its type's `validate/2`. Returns
   `{:ok, %{name => value}}` keyed by param name, or the first error.
-  Optional params the LLM omitted come back as `nil`.
+  Optional params the LLM omitted come back as their default (`nil` unless
+  one was set with `optional/2`).
   """
   @spec validate_params(map(), [Param.t()], map()) :: Rexult.t()
   def validate_params(%{} = input, params, %{} = session_opts) when is_list(params) do
@@ -163,7 +165,7 @@ defmodule Phod.Tool.Input do
   defp validate_param(input, %Param{} = param, session_opts) do
     case Map.get(input, Atom.to_string(param.name)) do
       nil when param.required? -> {:error, "#{param.name} is required"}
-      nil -> {:ok, nil}
+      nil -> {:ok, param.default}
       value -> param.type.validate(value, Map.merge(Map.new(param.opts), session_opts))
     end
   end

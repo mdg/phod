@@ -223,34 +223,37 @@ defmodule PhodWeb.SessionLive.Show do
   defp open_file(socket, path, _type_hint, mime_hint, charset_hint) do
     root = socket.assigns.snapshot.worktree_root
 
-    case Phod.Tool.Input.from_map(%{"path" => path}, root)
-         |> Phod.Tool.Input.validate_fields([:path]) do
-      {:ok, input} ->
-        render_selected_file(socket, input, mime_hint, charset_hint)
+    case Phod.Tool.Input.validate_params(
+           %{"path" => path},
+           [Phod.Tool.Input.path()],
+           %{session_root: root}
+         ) do
+      {:ok, %{path: safe_path}} ->
+        render_selected_file(socket, root, safe_path, mime_hint, charset_hint)
 
       {:error, reason} ->
         assign_selected(socket, path: path, error: reason)
     end
   end
 
-  defp render_selected_file(socket, input, mime_type, charset) do
+  defp render_selected_file(socket, root, path, mime_type, charset) do
     cond do
       is_binary(mime_type) and String.starts_with?(mime_type, "image/") ->
-        data_uri = "data:#{mime_type};base64," <> Base.encode64(File.read!(input.full_path))
-        assign_selected(socket, path: input.path, image: data_uri)
+        data_uri =
+          "data:#{mime_type};base64," <> Base.encode64(File.read!(Path.join(root, path)))
+
+        assign_selected(socket, path: path, image: data_uri)
 
       charset == "binary" ->
-        assign_selected(socket, path: input.path, binary?: true)
+        assign_selected(socket, path: path, binary?: true)
 
       true ->
-        root = socket.assigns.snapshot.worktree_root
-
-        case Phod.Tool.run("read_file", root, %{"path" => input.path}) do
+        case Phod.Tool.run("read_file", root, %{"path" => path}) do
           {:ok, %{content: content}} ->
-            assign_selected(socket, path: input.path, lines: parse_numbered_lines(content))
+            assign_selected(socket, path: path, lines: parse_numbered_lines(content))
 
           {:error, reason} ->
-            assign_selected(socket, path: input.path, error: reason)
+            assign_selected(socket, path: path, error: reason)
         end
     end
   end

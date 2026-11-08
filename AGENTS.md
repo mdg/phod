@@ -9,6 +9,7 @@ specifically leveraging Phoenix Live View and maybe Phoenix Presence.
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
 - Never remove dbg calls
 - Prefer Enum.map in .ex files over for loops if not using the filtering, patterns or nesting features of for.
+- **NEVER** commit anything or make and writes to the git repo
 
 ### Phoenix v1.8 guidelines
 

@@ -24,9 +24,8 @@ defmodule Phod.Tool.Rm do
   @impl Tool.B
   def params do
     [
-      Tool.Input.paths(:paths, "Files to remove, relative to the worktree root.",
-        required: true,
-        follow_last_symlink: false
+      Tool.Input.link_paths(:paths, "Files to remove, relative to the worktree root.",
+        required: true
       )
     ]
   end

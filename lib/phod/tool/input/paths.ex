@@ -2,6 +2,8 @@ defmodule Phod.Tool.Input.Paths do
   @moduledoc """
   The Paths input type: a non-empty list of paths, each validated exactly as
   `Phod.Tool.Input.Path` validates a single path. Duplicates are dropped.
+  Symlinks are followed. See `Phod.Tool.Input.LinkPaths` for the list of
+  unfollowed paths.
   """
 
   alias Phod.Tool.Input
@@ -37,21 +39,27 @@ defmodule Phod.Tool.Input.Paths do
   Options are those `Phod.Tool.Input.Path.validate/2` needs (`session_root`).
   """
   @impl Input.Type
-  def validate(paths, opts)
+  def validate(paths, opts), do: validate_with(paths, opts, &PathInput.validate/2)
 
-  def validate(paths, _opts) when not is_list(paths) do
+  @doc """
+  The list rules shared by the path-list types: a non-empty list, duplicates
+  dropped, each element checked by `validate_element` (a `validate/2`-style
+  function). Returns the first element error.
+  """
+  @spec validate_with(term(), map(), (term(), map() -> Rexult.t())) :: Rexult.t()
+  def validate_with(paths, _opts, _validate_element) when not is_list(paths) do
     {:error, "invalid paths"}
   end
 
-  def validate([], _opts) do
+  def validate_with([], _opts, _validate_element) do
     {:error, "invalid empty paths"}
   end
 
-  def validate(paths, opts) do
+  def validate_with(paths, opts, validate_element) do
     paths
     |> Enum.uniq()
     |> Enum.reduce_while({:ok, []}, fn path, {:ok, acc} ->
-      case PathInput.validate(path, opts) do
+      case validate_element.(path, opts) do
         {:ok, resolved} -> {:cont, {:ok, [resolved | acc]}}
         {:error, _msg} = error -> {:halt, error}
       end

@@ -58,4 +58,11 @@ defmodule Phod.Tool.Input.PathsTest do
              "items" => %{"type" => "string"}
            }
   end
+
+  test "follows a symlink to its target", %{root: root} do
+    write(root, "target.txt", "t")
+    symlink!("target.txt", Path.join(root, "link.txt"))
+
+    assert {:ok, ["target.txt"]} = Paths.validate(["link.txt"], %{session_root: root})
+  end
 end

@@ -85,34 +85,10 @@ defmodule Phod.Tool.Input.PathTest do
     assert {:ok, "work/inside.txt"} = PathInput.resolve(root, "alias.txt", false)
   end
 
-  describe "resolve/4 with follow_last? false" do
-    test "keeps a final symlink as the link, not its target", %{root: root} do
-      write(root, "target.txt", "t")
-      symlink!("target.txt", Path.join(root, "link.txt"))
+  test "follows a final symlink to its target", %{root: root} do
+    write(root, "target.txt", "t")
+    symlink!("target.txt", Path.join(root, "link.txt"))
 
-      assert {:ok, "link.txt"} = PathInput.resolve(root, "link.txt", false, false)
-      assert {:ok, "target.txt"} = PathInput.resolve(root, "link.txt", false, true)
-    end
-
-    test "still follows a parent symlink that stays inside the worktree", %{root: root} do
-      write(root, "work/inside.txt", "ok")
-      symlink!("work", Path.join(root, "alias"))
-
-      assert {:ok, "work/inside.txt"} = PathInput.resolve(root, "alias/inside.txt", false, false)
-    end
-
-    test "refuses a parent symlink that points outside the worktree", %{root: root} do
-      outside = Path.join(Path.dirname(root), "path-outside-#{System.unique_integer([:positive])}")
-      File.mkdir_p!(outside)
-      File.write!(Path.join(outside, "x.txt"), "x")
-      on_exit(fn -> File.rm_rf!(outside) end)
-      symlink!(outside, Path.join(root, "escape"))
-
-      assert {:error, "invalid path"} = PathInput.resolve(root, "escape/x.txt", false, false)
-    end
-
-    test "refuses a path that ends in . or ..", %{root: root} do
-      assert {:error, "invalid path"} = PathInput.resolve(root, ".", false, false)
-    end
+    assert {:ok, "target.txt"} = PathInput.validate("link.txt", %{session_root: root})
   end
 end

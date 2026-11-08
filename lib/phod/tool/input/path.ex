@@ -1,6 +1,10 @@
 defmodule Phod.Tool.Input.Path do
   @moduledoc """
-  The Path input type to make sure that the local file is in the worktree
+  The Path input type to make sure that the local file is in the worktree.
+
+  Symlinks are followed: a path to a link resolves to the file it points to,
+  as long as that file is inside the worktree. Use `Phod.Tool.Input.LinkPath`
+  to act on a symlink itself.
   """
 
   import Rexult
@@ -25,36 +29,30 @@ defmodule Phod.Tool.Input.Path do
   end
 
   @doc """
-  Validate that the path is valid and contained within the root
+  Validate that the path is valid and contained within the root. Options:
+  `session_root` (required) and `allow_new_path` (see `resolve/3`).
   """
   @impl Input.Type
-  def validate(path, opts)
-
-  def validate(path, _opts) when not is_binary(path) do
-    {:error, "invalid path"}
+  def validate(path, opts) do
+    case check_input(path, opts) do
+      :ok -> resolve(opts.session_root, path, Map.get(opts, :allow_new_path, false))
+      {:error, _msg} = error -> error
+    end
   end
 
-  def validate("", _opts) do
-    {:error, "invalid empty path"}
-  end
-
-  def validate(_path, %{session_root: root}) when not is_binary(root) do
-    {:error, "invalid session_root"}
-  end
-
-  def validate(_path, %{session_root: ""}) do
-    {:error, "invalid empty session_root"}
-  end
-
-  def validate(_path, opts) when not is_map_key(opts, :session_root) do
-    {:error, "missing session_root"}
-  end
-
-  def validate(path, %{session_root: root} = opts) do
-    allow_new_path? = Map.get(opts, :allow_new_path, false)
-
-    resolve(root, path, allow_new_path?, follow_last?)
-  end
+  @doc """
+  Checks the value and options before any filesystem lookup: `path` must be a
+  non-empty string, and `opts` must carry a non-empty `session_root` string.
+  Shared with `Phod.Tool.Input.LinkPath`.
+  """
+  @spec check_input(term(), term()) :: :ok | {:error, String.t()}
+  def check_input(path, _opts) when not is_binary(path), do: {:error, "invalid path"}
+  def check_input("", _opts), do: {:error, "invalid empty path"}
+  def check_input(_path, %{session_root: root}) when not is_binary(root), do: {:error, "invalid session_root"}
+  def check_input(_path, %{session_root: ""}), do: {:error, "invalid empty session_root"}
+  def check_input(_path, opts) when is_map(opts) and not is_map_key(opts, :session_root), do: {:error, "missing session_root"}
+  def check_input(_path, opts) when is_map(opts), do: :ok
+  def check_input(_path, _opts), do: {:error, "missing session_root"}
 
   @doc """
   Resolves `path` (relative to the worktree `root`) into a checked filesystem
@@ -75,11 +73,11 @@ defmodule Phod.Tool.Input.Path do
   @spec resolve(String.t(), term(), boolean()) :: {:ok, String.t()} | {:error, String.t()}
   def resolve(root, path, allow_new_path?)
 
-  def resolve(_root, path, _) when not is_binary(path) do
+  def resolve(_root, path, _allow_new?) when not is_binary(path) do
     {:error, "path must be a string, got: #{inspect(path)}"}
   end
 
-  def resolve(_root, "", _) do
+  def resolve(_root, "", _allow_new?) do
     {:error, "path must not be empty"}
   end
 

@@ -73,7 +73,7 @@ defmodule Phod.Tool.RmTest do
   end
 
   test "cannot remove through a parent symlink that points outside the worktree", %{
-    root: root
+    root: root,
   } do
     outside_dir =
       Path.join(Path.dirname(root), "rm-outdir-#{System.unique_integer([:positive])}")

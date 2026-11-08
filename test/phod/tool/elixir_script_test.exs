@@ -103,7 +103,7 @@ defmodule Phod.Tool.ElixirScriptTest do
   end
 
   test "the sandbox binds every session worktree and runs in the selected one", %{
-    root: root
+    root: root,
   } do
     second =
       Path.join(Path.dirname(root), "es-second-#{System.unique_integer([:positive])}")
@@ -117,7 +117,7 @@ defmodule Phod.Tool.ElixirScriptTest do
     assert {:ok, %{exit_status: 0, stdout: stdout}} =
              Tool.run("elixir_script", worktrees, %{
                "script" => script,
-               "worktree" => "u/second"
+               "worktree" => "u/second",
              })
 
     assert File.read!(Path.join(second, "from_script.txt")) == "hi"

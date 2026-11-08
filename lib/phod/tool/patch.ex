@@ -74,7 +74,10 @@ defmodule Phod.Tool.Patch do
       Enum.any?(lines, &String.starts_with?(&1, "*** ")) ->
         {:error, String.trim(@envelope_error)}
 
-      Enum.any?(lines, &(String.starts_with?(&1, "@@") and not Regex.match?(@hunk_header, &1))) ->
+      Enum.any?(
+        lines,
+        &(String.starts_with?(&1, "@@") and not Regex.match?(@hunk_header, &1))
+      ) ->
         {:error, String.trim(@hunk_error)}
 
       true ->

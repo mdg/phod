@@ -184,10 +184,17 @@ defmodule Phod.Session.LoopTest do
     assert_received {:tool_choice, %{"type" => "none"}}
 
     [summary, wrap_up | _] = Enum.reverse(messages_so_far)
-    assert summary == %{"role" => "assistant", "content" => [%{"type" => "text", "text" => "here is my summary"}]}
+
+    assert summary == %{
+             "role" => "assistant",
+             "content" => [%{"type" => "text", "text" => "here is my summary"}]
+           }
 
     assert %{"role" => "user", "content" => blocks} = wrap_up
-    assert [%{"type" => "tool_result", "is_error" => true, "content" => not_run} | rest] = blocks
+
+    assert [%{"type" => "tool_result", "is_error" => true, "content" => not_run} | rest] =
+             blocks
+
     assert not_run =~ "not run"
     assert [%{"type" => "text", "text" => text}] = rest
     assert text =~ "Summarize"
@@ -259,7 +266,7 @@ defmodule Phod.Session.LoopTest do
 
       Req.Test.json(conn, %{
         "content" => [
-          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}}
+          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}},
         ],
         "stop_reason" => "tool_use",
       })
@@ -271,7 +278,7 @@ defmodule Phod.Session.LoopTest do
 
       Req.Test.json(conn, %{
         "content" => [%{"type" => "text", "text" => "done"}],
-        "stop_reason" => "end_turn"
+        "stop_reason" => "end_turn",
       })
     end)
 
@@ -283,7 +290,7 @@ defmodule Phod.Session.LoopTest do
   end
 
   test "a tool call acts on the worktree it names, and edits report which one", %{
-    root: root
+    root: root,
   } do
     second =
       Path.join(Path.dirname(root), "loop-second-#{System.unique_integer([:positive])}")
@@ -305,13 +312,13 @@ defmodule Phod.Session.LoopTest do
             "type" => "tool_use",
             "id" => "tu_read",
             "name" => "read_files",
-            "input" => %{"paths" => ["b.txt"], "worktree" => "u/second"}
+            "input" => %{"paths" => ["b.txt"], "worktree" => "u/second"},
           },
           %{
             "type" => "tool_use",
             "id" => "tu_patch",
             "name" => "patch",
-            "input" => %{"path" => "new.txt", "diff" => diff, "worktree" => "u/second"}
+            "input" => %{"path" => "new.txt", "diff" => diff, "worktree" => "u/second"},
           },
         ],
         "stop_reason" => "tool_use",

@@ -28,11 +28,13 @@ defmodule Phod.Tool.WriteFile do
   @impl Tool.B
   def params do
     [
-      Tool.Input.path(:path, "File to write, relative to the worktree root. It may not exist yet.",
+      Tool.Input.path(
+        :path,
+        "File to write, relative to the worktree root. It may not exist yet.",
         required: true,
         allow_new_path: true
       ),
-      Tool.Input.string(:content, "The complete contents of the file.", required: true)
+      Tool.Input.string(:content, "The complete contents of the file.", required: true),
     ]
   end
 
@@ -49,5 +51,7 @@ defmodule Phod.Tool.WriteFile do
   end
 
   defp write_error(path, :eisdir), do: "#{inspect(path)} is a directory, not a file"
-  defp write_error(path, reason), do: "could not write #{inspect(path)}: " <> Tool.Lib.format_error(reason)
+
+  defp write_error(path, reason),
+    do: "could not write #{inspect(path)}: " <> Tool.Lib.format_error(reason)
 end

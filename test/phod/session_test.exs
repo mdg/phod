@@ -36,7 +36,11 @@ defmodule Phod.SessionTest do
     assert length(messages) == 2
   end
 
-  test "a send_message/2 while running is queued and runs after the current run", %{id: id, user: user, tree: tree} do
+  test "a send_message/2 while running is queued and runs after the current run", %{
+    id: id,
+    user: user,
+    tree: tree
+  } do
     test_pid = self()
 
     Req.Test.stub(Phod.Session.LlmStub, fn conn ->
@@ -61,7 +65,9 @@ defmodule Phod.SessionTest do
     assert_receive :llm_called, 1000
     release_running_tasks()
 
-    assert_receive {:session_snapshot, %{status: :idle, queued: [], messages: messages}}, 2000
+    assert_receive {:session_snapshot, %{status: :idle, queued: [], messages: messages}},
+                   2000
+
     texts = for %{"role" => "user", "content" => [%{"text" => text}]} <- messages, do: text
     assert texts == ["first", "second"]
   end
@@ -250,7 +256,7 @@ defmodule Phod.SessionTest do
     test "rejects a worktree that is already part of the session", %{
       user: user,
       tree: tree,
-      id: id
+      id: id,
     } do
       {:ok, _pid} = Phod.Session.ensure_started(user, tree)
 
@@ -260,7 +266,7 @@ defmodule Phod.SessionTest do
     test "rejects a worktree that is not a valid directory", %{
       user: user,
       tree: tree,
-      id: id
+      id: id,
     } do
       {:ok, _pid} = Phod.Session.ensure_started(user, tree)
       missing = "no-such-#{System.unique_integer([:positive])}"

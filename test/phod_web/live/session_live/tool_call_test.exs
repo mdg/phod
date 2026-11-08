@@ -12,25 +12,32 @@ defmodule PhodWeb.SessionLive.ToolCallTest do
       kind: :tool_call,
       name: "grep",
       input: %{"patterns" => patterns},
-      result: {:ok, %{"matches" => [], "truncated?" => false, "patterns" => patterns}}
+      result: {:ok, %{"matches" => [], "truncated?" => false, "patterns" => patterns}},
     }
   end
 
   test "a grep summary shows its first two patterns and ... when there are more" do
-    html = render_component(&Components.tool_call_block/1, item: grep_item(["alpha", "beta", "gamma", "delta"]))
+    html =
+      render_component(&Components.tool_call_block/1,
+        item: grep_item(["alpha", "beta", "gamma", "delta"])
+      )
 
     assert html =~ "alpha, beta, ..."
   end
 
   test "a grep summary with two or fewer patterns shows them all, with no ..." do
-    html = render_component(&Components.tool_call_block/1, item: grep_item(["alpha", "beta"]))
+    html =
+      render_component(&Components.tool_call_block/1, item: grep_item(["alpha", "beta"]))
 
     assert html =~ "alpha, beta"
     refute html =~ "..."
   end
 
   test "the expanded grep view lists every pattern" do
-    html = render_component(&Components.tool_call_block/1, item: grep_item(["alpha", "beta", "gamma", "delta"]))
+    html =
+      render_component(&Components.tool_call_block/1,
+        item: grep_item(["alpha", "beta", "gamma", "delta"])
+      )
 
     doc = LazyHTML.from_fragment(html)
     listed = doc |> LazyHTML.query("[data-role=tool-call-patterns] code") |> LazyHTML.text()
@@ -42,7 +49,14 @@ defmodule PhodWeb.SessionLive.ToolCallTest do
   end
 
   test "a grep call whose pattern arrived as a bare string renders without crashing" do
-    item = %{grep_item([]) | input: %{"patterns" => "[\"/]nfl/players"}, result: {:ok, %{"matches" => [], "truncated?" => false, "patterns" => ["[\"/]nfl/players"]}}}
+    item = %{
+      grep_item([])
+      | input: %{"patterns" => "[\"/]nfl/players"},
+        result:
+          {:ok,
+           %{"matches" => [], "truncated?" => false, "patterns" => ["[\"/]nfl/players"]}}
+    }
+
     html = render_component(&Components.tool_call_block/1, item: item)
 
     assert html =~ "nfl/players"

@@ -50,7 +50,7 @@ defmodule Phod.Tool do
     property = %{
       "type" => "string",
       "enum" => worktree_names,
-      "description" => @worktree_doc
+      "description" => @worktree_doc,
     }
 
     Map.update!(schema, "properties", &Map.put(&1, "worktree", property))

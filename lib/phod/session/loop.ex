@@ -96,7 +96,7 @@ defmodule Phod.Session.Loop do
 
     wrap_up_msg = %{
       "role" => "user",
-      "content" => not_run ++ [%{"type" => "text", "text" => @wrap_up}]
+      "content" => not_run ++ [%{"type" => "text", "text" => @wrap_up}],
     }
 
     messages = messages ++ [wrap_up_msg]

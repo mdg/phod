@@ -21,14 +21,14 @@ defmodule Phod.Tool.ReadFilesTest do
             %{
               files: [
                 %{path: "lib/b.ex", content: "1: beta"},
-                %{path: "a.txt", content: "1: alpha"}
-              ]
+                %{path: "a.txt", content: "1: alpha"},
+              ],
             }} =
              Tool.run("read_files", root, %{"paths" => ["lib/b.ex", "a.txt"]})
   end
 
   test "a file that can't be read is an entry error; the others are still returned", %{
-    root: root
+    root: root,
   } do
     write(root, "src/index.ex", "x\n")
     write(root, "ok.txt", "fine\n")
@@ -41,7 +41,7 @@ defmodule Phod.Tool.ReadFilesTest do
   end
 
   test "a path that does not resolve fails the whole call before any file is read", %{
-    root: root
+    root: root,
   } do
     write(root, "ok.txt", "fine\n")
 

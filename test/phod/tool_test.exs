@@ -18,7 +18,16 @@ defmodule Phod.ToolTest do
     assert length(tools) == 7
 
     names = Enum.map(tools, & &1["name"])
-    assert Enum.sort(names) == ["grep", "list_files", "patch", "read_files", "rm", "rustc", "write_file"]
+
+    assert Enum.sort(names) == [
+             "grep",
+             "list_files",
+             "patch",
+             "read_files",
+             "rm",
+             "rustc",
+             "write_file"
+           ]
 
     for tool <- tools do
       assert %{"name" => name, "description" => description, "input_schema" => schema} =
@@ -65,7 +74,7 @@ defmodule Phod.ToolTest do
     end
 
     test "several worktrees add an enum of their names to every tool", %{
-      worktrees: worktrees
+      worktrees: worktrees,
     } do
       names = Enum.map(worktrees, &elem(&1, 0))
 
@@ -84,12 +93,12 @@ defmodule Phod.ToolTest do
       assert {:ok, %{files: [%{content: "1: from second"}]}} =
                Tool.run("read_files", worktrees, %{
                  "paths" => ["second.txt"],
-                 "worktree" => "u/second"
+                 "worktree" => "u/second",
                })
     end
 
     test "a file that is only in another worktree is not found by default", %{
-      worktrees: worktrees
+      worktrees: worktrees,
     } do
       assert {:error, "paths: invalid path"} =
                Tool.run("read_files", worktrees, %{"paths" => ["second.txt"]})
@@ -99,7 +108,7 @@ defmodule Phod.ToolTest do
       assert {:error, msg} =
                Tool.run("read_files", worktrees, %{
                  "paths" => ["first.txt"],
-                 "worktree" => "u/nope"
+                 "worktree" => "u/nope",
                })
 
       assert msg =~ ~S(unknown worktree "u/nope")
@@ -109,7 +118,7 @@ defmodule Phod.ToolTest do
       assert {:ok, _} =
                Tool.run("read_files", [first], %{
                  "paths" => ["first.txt"],
-                 "worktree" => "x"
+                 "worktree" => "x",
                })
     end
   end

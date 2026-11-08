@@ -325,8 +325,11 @@ defmodule PhodWeb.SessionLive.Components do
   # tool validated, not the raw input.
   defp tool_summary(%{name: "grep"} = item) do
     case grep_patterns(item) do
-      [_, _, _ | _] = patterns -> Enum.take(patterns, 2) |> Enum.join(", ") |> Kernel.<>(", ...")
-      patterns -> Enum.join(patterns, ", ")
+      [_, _, _ | _] = patterns ->
+        Enum.take(patterns, 2) |> Enum.join(", ") |> Kernel.<>(", ...")
+
+      patterns ->
+        Enum.join(patterns, ", ")
     end
   end
 
@@ -341,7 +344,9 @@ defmodule PhodWeb.SessionLive.Components do
 
   # The patterns the grep tool validated, from its result. While the call is
   # pending, or when validation failed (shown as the error instead), there are none.
-  defp grep_patterns(%{name: "grep", result: {:ok, %{"patterns" => patterns}}}), do: patterns
+  defp grep_patterns(%{name: "grep", result: {:ok, %{"patterns" => patterns}}}),
+    do: patterns
+
   defp grep_patterns(_item), do: []
 
   # -- File explorer pane ---------------------------------------------------

@@ -108,7 +108,11 @@ defmodule Phod.Session.LlmTest do
     Req.Test.stub(Phod.Session.LlmStub, fn conn ->
       {:ok, raw, conn} = Plug.Conn.read_body(conn)
       send(test_pid, {:body, Jason.decode!(raw)})
-      Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "ok"}], "stop_reason" => "end_turn"})
+
+      Req.Test.json(conn, %{
+        "content" => [%{"type" => "text", "text" => "ok"}],
+        "stop_reason" => "end_turn"
+      })
     end)
 
     assert {:ok, _} = Llm.complete(@messages, nil, nil, tool_choice: :none)

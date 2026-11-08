@@ -214,7 +214,11 @@ defmodule Phod.Session do
   end
 
   @impl true
-  def handle_call({:send_message, text, sender}, _from, %__MODULE__{status: :running} = state) do
+  def handle_call(
+        {:send_message, text, sender},
+        _from,
+        %__MODULE__{status: :running} = state
+      ) do
     state = %{state | queue: state.queue ++ [{text, sender}]}
     broadcast(state)
     {:reply, {:ok, :queued}, state, state.idle_timeout}
@@ -347,7 +351,7 @@ defmodule Phod.Session do
       messages: state.messages,
       edits: state.edits,
       last_error: state.last_error,
-      queued: Enum.map(state.queue, fn {text, _sender} -> text end)
+      queued: Enum.map(state.queue, fn {text, _sender} -> text end),
     }
   end
 

@@ -47,15 +47,16 @@ defmodule Phod.Session.Llm do
     if cfg[:api_key] in [nil, ""] do
       {:error, "LLM_API_KEY is not set"}
     else
-      body = %{
-        "model" => cfg[:model],
-        "system" => system_blocks(instructions),
-        "messages" => messages,
-        "tools" => tools || Phod.Tool.anthropic_tools(),
-        "max_tokens" => cfg[:max_tokens],
-        "stream" => false,
-      }
-      |> with_tool_choice(Keyword.get(opts, :tool_choice))
+      body =
+        %{
+          "model" => cfg[:model],
+          "system" => system_blocks(instructions),
+          "messages" => messages,
+          "tools" => tools || Phod.Tool.anthropic_tools(),
+          "max_tokens" => cfg[:max_tokens],
+          "stream" => false,
+        }
+        |> with_tool_choice(Keyword.get(opts, :tool_choice))
 
       cfg
       |> client()

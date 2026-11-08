@@ -9,7 +9,10 @@ defmodule Phod.Tool.WriteFileTest do
 
   test "creates a new file, with its missing parent directories", %{root: root} do
     assert {:ok, %{path: "lib/new/thing.ex", created?: true, bytes: 6}} =
-             Tool.run("write_file", root, %{"path" => "lib/new/thing.ex", "content" => "hello\n"})
+             Tool.run("write_file", root, %{
+               "path" => "lib/new/thing.ex",
+               "content" => "hello\n"
+             })
 
     assert File.read!(Path.join(root, "lib/new/thing.ex")) == "hello\n"
   end
@@ -27,7 +30,9 @@ defmodule Phod.Tool.WriteFileTest do
     write(root, "target.txt", "old\n")
     symlink!("target.txt", Path.join(root, "link.txt"))
 
-    assert {:ok, _} = Tool.run("write_file", root, %{"path" => "link.txt", "content" => "via link\n"})
+    assert {:ok, _} =
+             Tool.run("write_file", root, %{"path" => "link.txt", "content" => "via link\n"})
+
     assert File.read!(Path.join(root, "target.txt")) == "via link\n"
   end
 
@@ -35,14 +40,18 @@ defmodule Phod.Tool.WriteFileTest do
     assert {:error, "content: invalid empty string"} =
              Tool.run("write_file", root, %{"path" => "a.txt", "content" => ""})
 
-    assert {:error, "content is required"} = Tool.run("write_file", root, %{"path" => "a.txt"})
+    assert {:error, "content is required"} =
+             Tool.run("write_file", root, %{"path" => "a.txt"})
+
     refute File.exists?(Path.join(root, "a.txt"))
   end
 
   test "rejects a directory path", %{root: root} do
     write(root, "dir/inner.txt", "x")
 
-    assert {:error, msg} = Tool.run("write_file", root, %{"path" => "dir", "content" => "x"})
+    assert {:error, msg} =
+             Tool.run("write_file", root, %{"path" => "dir", "content" => "x"})
+
     assert msg == "\"dir\" is a directory, not a file"
   end
 

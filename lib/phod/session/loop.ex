@@ -7,6 +7,7 @@ defmodule Phod.Session.Loop do
   Takes no GenServer/Task dependency, so it can be driven directly in
   tests against a real tmp worktree.
   """
+  import Rexult
 
   alias Phod.Session.Llm
   alias Phod.Tool
@@ -94,15 +95,16 @@ defmodule Phod.Session.Loop do
     messages = messages ++ [wrap_up_msg]
     ctx.on_event.({:message_appended, wrap_up_msg})
 
-    case Llm.complete(messages, ctx.instructions, ctx.tools, tool_choice: :none) do
-      {:ok, %{content: summary}} ->
-        summary_msg = %{"role" => "assistant", "content" => summary}
-        ctx.on_event.({:message_appended, summary_msg})
-        {:error, reason, messages ++ [summary_msg]}
-
-      {:error, _llm_reason} ->
-        {:error, reason, messages}
-    end
+    Llm.complete(messages, ctx.instructions, ctx.tools, tool_choice: :none)
+    |> map_err(fn llm_reason ->
+      dbg(llm_reason)
+      {:error, reason, messages}
+    end)
+    |> ok_and_then(fn %{content: summary} ->
+      summary_msg = %{"role" => "assistant", "content" => summary}
+      ctx.on_event.({:message_appended, summary_msg})
+      {:error, reason, messages ++ [summary_msg]}
+    end)
   end
 
   defp continue_with_tools(messages, ctx, blocks, remaining, total) do

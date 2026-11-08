@@ -94,6 +94,7 @@ custom classes must fully style the input
   catch the input and return an error.
 - Use the Rexult module to handle ok and error tuple results
 - **Never** use elixir "with" expression. Use the Rexult module instead.
+- Chain fallible steps as a Rexult pipeline instead of a `case`: `map_err/2` translates an error, `ok_and_then/2` runs the next step on success, so the happy path reads top to bottom. Error values must stay `{:error, reason}` two-tuples, because Rexult wraps whatever `map_err/2` returns, so a three-tuple like `{:error, reason, messages}` gets nested.
 
 ## Mix guidelines
 

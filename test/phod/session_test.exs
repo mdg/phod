@@ -32,7 +32,11 @@ defmodule Phod.SessionTest do
     assert length(messages) == 2
   end
 
-  test "a second send_message/2 while running is rejected with :busy", %{id: id, user: user, tree: tree} do
+  test "a second send_message/2 while running is rejected with :busy", %{
+    id: id,
+    user: user,
+    tree: tree
+  } do
     test_pid = self()
 
     Req.Test.stub(Phod.Session.LlmStub, fn conn ->
@@ -55,7 +59,12 @@ defmodule Phod.SessionTest do
     end
   end
 
-  test "patch round-trips through the GenServer and is visible in get_snapshot/1", %{id: id, root: root, user: user, tree: tree} do
+  test "patch round-trips through the GenServer and is visible in get_snapshot/1", %{
+    id: id,
+    root: root,
+    user: user,
+    tree: tree
+  } do
     diff = "--- /dev/null\n+++ b/new.txt\n@@ -0,0 +1 @@\n+hello\n"
 
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
@@ -87,7 +96,11 @@ defmodule Phod.SessionTest do
     assert File.read!(Path.join(root, "new.txt")) == "hello\n"
   end
 
-  test "a crashing agent run logs the crash reason and settles back to :idle", %{id: id, user: user, tree: tree} do
+  test "a crashing agent run logs the crash reason and settles back to :idle", %{
+    id: id,
+    user: user,
+    tree: tree
+  } do
     Req.Test.stub(Phod.Session.LlmStub, fn _conn -> raise "boom" end)
 
     pid = start_and_allow(user, tree)
@@ -106,7 +119,12 @@ defmodule Phod.SessionTest do
     assert log =~ "boom"
   end
 
-  test "the session log records the user, tool calls, tool results and replies", %{id: id, root: root, user: user, tree: tree} do
+  test "the session log records the user, tool calls, tool results and replies", %{
+    id: id,
+    root: root,
+    user: user,
+    tree: tree
+  } do
     log_path = Phod.Session.Log.path(root)
     on_exit(fn -> File.rm(log_path) end)
 

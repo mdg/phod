@@ -39,7 +39,11 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert {:ok, _pid} = Phod.Session.whereis(Phod.Session.session_id(owner, tree))
   end
 
-  test "renders a join prompt when the browser has no display name yet", %{conn: conn, user: owner, tree: tree} do
+  test "renders a join prompt when the browser has no display name yet", %{
+    conn: conn,
+    user: owner,
+    tree: tree
+  } do
     Phod.Session.ensure_started(owner, tree)
     {:ok, view, _html} = live(conn, ~p"/sessions/#{owner}/#{tree}")
     assert has_element?(view, "[data-role=join-form]")
@@ -55,7 +59,12 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert has_element?(view, "[data-role=editor]")
   end
 
-  test "sending a message drives a stubbed LLM round trip and updates the transcript", %{conn: conn, id: id, user: owner, tree: tree} do
+  test "sending a message drives a stubbed LLM round trip and updates the transcript", %{
+    conn: conn,
+    id: id,
+    user: owner,
+    tree: tree
+  } do
     Req.Test.expect(Phod.Session.LlmStub, text_response("hello!"))
 
     pid = start_and_allow(owner, tree)
@@ -73,7 +82,12 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert render(view) =~ "hello!"
   end
 
-  test "expanding a directory in the file tree lists its contents", %{conn: conn, user: owner, tree: tree, root: root} do
+  test "expanding a directory in the file tree lists its contents", %{
+    conn: conn,
+    user: owner,
+    tree: tree,
+    root: root
+  } do
     Phod.Tool.TestHelpers.write(root, "lib/foo.ex", "hi")
     Phod.Session.ensure_started(owner, tree)
 
@@ -86,7 +100,13 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert render(view) =~ "foo.ex"
   end
 
-  test "clicking a tool-result path opens the editor pane", %{conn: conn, id: id, user: owner, tree: tree, root: root} do
+  test "clicking a tool-result path opens the editor pane", %{
+    conn: conn,
+    id: id,
+    user: owner,
+    tree: tree,
+    root: root
+  } do
     Phod.Tool.TestHelpers.write(root, "new.txt", "hello")
 
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
@@ -126,7 +146,12 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert has_element?(view, "[data-role=editor] span", "hello")
   end
 
-  test "the chat transcript shows the diff the LLM sent to patch", %{conn: conn, id: id, user: owner, tree: tree} do
+  test "the chat transcript shows the diff the LLM sent to patch", %{
+    conn: conn,
+    id: id,
+    user: owner,
+    tree: tree
+  } do
     diff = "--- /dev/null\n+++ b/new.txt\n@@ -0,0 +1 @@\n+hello\n"
 
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
@@ -158,7 +183,12 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert has_element?(view, "[data-role=tool-call-diff]", "+hello")
   end
 
-  test "the chat transcript shows the script sent to elixir_script and its result", %{conn: conn, id: id, user: owner, tree: tree} do
+  test "the chat transcript shows the script sent to elixir_script and its result", %{
+    conn: conn,
+    id: id,
+    user: owner,
+    tree: tree
+  } do
     script = "IO.puts(\"hi from script\")"
 
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
@@ -195,7 +225,12 @@ defmodule PhodWeb.SessionLive.ShowTest do
               "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGNgAAIAAAUAAeIhvDMAAAAASUVORK5CYII="
             )
 
-  test "clicking an image file in the file tree displays it as an image", %{conn: conn, user: owner, tree: tree, root: root} do
+  test "clicking an image file in the file tree displays it as an image", %{
+    conn: conn,
+    user: owner,
+    tree: tree,
+    root: root
+  } do
     Phod.Tool.TestHelpers.write(root, "tiny.png", @tiny_png)
     Phod.Session.ensure_started(owner, tree)
 
@@ -240,7 +275,12 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert has_element?(view, "[data-role=editor-symlink-notice]")
   end
 
-  test "the file tree picks up files added and removed on disk", %{conn: conn, user: owner, tree: tree, root: root} do
+  test "the file tree picks up files added and removed on disk", %{
+    conn: conn,
+    user: owner,
+    tree: tree,
+    root: root
+  } do
     Phod.Session.ensure_started(owner, tree)
     {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
 
@@ -255,7 +295,12 @@ defmodule PhodWeb.SessionLive.ShowTest do
     refute has_element?(view, "[data-role=file-tree] button", "added.txt")
   end
 
-  test "a second connection joining updates the first view's presence roster", %{conn: conn, id: id, user: owner, tree: tree} do
+  test "a second connection joining updates the first view's presence roster", %{
+    conn: conn,
+    id: id,
+    user: owner,
+    tree: tree
+  } do
     Phod.Session.ensure_started(owner, tree)
 
     {:ok, view1, _html} = live(with_identity(conn, "Ada"), ~p"/sessions/#{owner}/#{tree}")

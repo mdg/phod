@@ -26,7 +26,7 @@ defmodule Phod.Tool.Rm do
     [
       Tool.Input.link_paths(:paths, "Files to remove, relative to the worktree root.",
         required: true
-      )
+      ),
     ]
   end
 

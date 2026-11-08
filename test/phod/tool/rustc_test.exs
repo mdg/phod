@@ -16,7 +16,7 @@ defmodule Phod.Tool.RustcTest do
   end
 
   test "returns compiler diagnostics as a normal result when the file does not compile", %{
-    root: root
+    root: root,
   } do
     write(root, "bad.rs", "fn main() {\n    let x: u32 = \"not a number\";\n}\n")
 

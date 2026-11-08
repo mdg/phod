@@ -46,7 +46,7 @@ defmodule Phod.Session do
     status: :idle,
     edits: [],
     last_error: nil,
-    task_ref: nil
+    task_ref: nil,
   ]
 
   @idle_timeout :timer.minutes(30)
@@ -107,8 +107,11 @@ defmodule Phod.Session do
   @spec valid_session_name?(term()) :: boolean()
   def valid_session_name?(session_name) when is_binary(session_name) do
     case String.split(session_name, "/") do
-      [user, name] -> Regex.match?(@github_user, user) and Regex.match?(@worktree_name, name)
-      _ -> false
+      [user, name] ->
+        Regex.match?(@github_user, user) and Regex.match?(@worktree_name, name)
+
+      _ ->
+        false
     end
   end
 
@@ -199,7 +202,7 @@ defmodule Phod.Session do
         id: id,
         worktrees: [{id, worktree_root}],
         idle_timeout: idle_timeout,
-        log_path: Log.path(worktree_root)
+        log_path: Log.path(worktree_root),
       }
 
       reset_log(state)
@@ -217,7 +220,11 @@ defmodule Phod.Session do
     {:reply, {:ok, :queued}, state, state.idle_timeout}
   end
 
-  def handle_call({:add_worktree, _user, _tree}, _from, %__MODULE__{status: :running} = state) do
+  def handle_call(
+        {:add_worktree, _user, _tree},
+        _from,
+        %__MODULE__{status: :running} = state
+      ) do
     {:reply, {:error, :busy}, state, state.idle_timeout}
   end
 
@@ -284,7 +291,12 @@ defmodule Phod.Session do
     message = "agent run crashed: #{inspect(reason)}"
     log(state, Log.error_entry(message))
 
-    state = start_next(%{state | status: :idle, task_ref: nil, last_error: message})
+    state = %{
+      state
+      | status: :idle,
+        task_ref: nil,
+        last_error: "agent run crashed: #{inspect(reason)}",
+    }
 
     broadcast(state)
     {:noreply, state, state.idle_timeout}

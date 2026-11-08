@@ -11,7 +11,13 @@ defmodule PhodWeb.SessionLive.Transcript do
 
   @type item ::
           %{kind: :text, role: String.t(), text: String.t()}
-          | %{kind: :tool_call, id: String.t(), name: String.t(), input: map(), result: result()}
+          | %{
+              kind: :tool_call,
+              id: String.t(),
+              name: String.t(),
+              input: map(),
+              result: result(),
+            }
 
   @type result :: {:ok, map()} | {:error, String.t()} | :pending
 
@@ -80,8 +86,8 @@ defmodule PhodWeb.SessionLive.Transcript do
             id: id,
             name: name,
             input: input,
-            result: Map.get(results, id, :pending)
-          }
+            result: Map.get(results, id, :pending),
+          },
         ]
 
       _other ->

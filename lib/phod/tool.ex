@@ -34,8 +34,8 @@ defmodule Phod.Tool do
             %{
               required(:name) => String.t(),
               required(:description) => String.t(),
-              required(:input_schema) => map()
-            }
+              required(:input_schema) => map(),
+            },
           ]
   def specs(worktree_names \\ []) do
     for {tool, true} <- @tools do
@@ -47,7 +47,12 @@ defmodule Phod.Tool do
   # Only sessions with more than one worktree need to tell the tools which
   # one to use; with a single worktree the schema stays as the tool declares it.
   defp with_worktree_property(schema, [_, _ | _] = worktree_names) do
-    property = %{"type" => "string", "enum" => worktree_names, "description" => @worktree_doc}
+    property = %{
+      "type" => "string",
+      "enum" => worktree_names,
+      "description" => @worktree_doc
+    }
+
     Map.update!(schema, "properties", &Map.put(&1, "worktree", property))
   end
 
@@ -60,7 +65,8 @@ defmodule Phod.Tool do
   """
   @spec anthropic_tools([String.t()]) :: [map()]
   def anthropic_tools(worktree_names \\ []) do
-    for %{name: name, description: description, input_schema: schema} <- specs(worktree_names) do
+    for %{name: name, description: description, input_schema: schema} <-
+          specs(worktree_names) do
       %{"name" => name, "description" => description, "input_schema" => schema}
     end
   end

@@ -48,9 +48,15 @@ defmodule Phod.Tool.Input.Path do
   @spec check_input(term(), term()) :: :ok | {:error, String.t()}
   def check_input(path, _opts) when not is_binary(path), do: {:error, "invalid path"}
   def check_input("", _opts), do: {:error, "invalid empty path"}
-  def check_input(_path, %{session_root: root}) when not is_binary(root), do: {:error, "invalid session_root"}
+
+  def check_input(_path, %{session_root: root}) when not is_binary(root),
+    do: {:error, "invalid session_root"}
+
   def check_input(_path, %{session_root: ""}), do: {:error, "invalid empty session_root"}
-  def check_input(_path, opts) when is_map(opts) and not is_map_key(opts, :session_root), do: {:error, "missing session_root"}
+
+  def check_input(_path, opts) when is_map(opts) and not is_map_key(opts, :session_root),
+    do: {:error, "missing session_root"}
+
   def check_input(_path, opts) when is_map(opts), do: :ok
   def check_input(_path, _opts), do: {:error, "missing session_root"}
 
@@ -100,9 +106,14 @@ defmodule Phod.Tool.Input.Path do
       |> map_err(fn _ -> "invalid path" end)
       |> ok_and_then(fn safe_path ->
         cond do
-          git_path?(safe_path) -> {:error, @git_refusal}
-          allow_new? or File.exists?(Path.join(root, safe_path)) -> {:ok, if(safe_path == "", do: ".", else: safe_path)}
-          true -> {:error, "invalid path"}
+          git_path?(safe_path) ->
+            {:error, @git_refusal}
+
+          allow_new? or File.exists?(Path.join(root, safe_path)) ->
+            {:ok, if(safe_path == "", do: ".", else: safe_path)}
+
+          true ->
+            {:error, "invalid path"}
         end
       end)
     end

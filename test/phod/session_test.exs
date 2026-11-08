@@ -11,14 +11,18 @@ defmodule Phod.SessionTest do
     fn conn ->
       Req.Test.json(conn, %{
         "content" => [%{"type" => "text", "text" => text}],
-        "stop_reason" => stop_reason
+        "stop_reason" => stop_reason,
       })
     end
   end
 
   import Phod.Session.TestHelpers, only: [start_and_allow: 2]
 
-  test "send_message/2 runs the loop and settles back to :idle", %{id: id, user: user, tree: tree} do
+  test "send_message/2 runs the loop and settles back to :idle", %{
+    id: id,
+    user: user,
+    tree: tree,
+  } do
     Req.Test.expect(Phod.Session.LlmStub, text_response("hello!"))
 
     pid = start_and_allow(user, tree)
@@ -68,7 +72,12 @@ defmodule Phod.SessionTest do
     end
   end
 
-  test "patch round-trips through the GenServer and is visible in get_snapshot/1", %{id: id, root: root, user: user, tree: tree} do
+  test "patch round-trips through the GenServer and is visible in get_snapshot/1", %{
+    id: id,
+    root: root,
+    user: user,
+    tree: tree,
+  } do
     diff = "--- /dev/null\n+++ b/new.txt\n@@ -0,0 +1 @@\n+hello\n"
 
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
@@ -78,10 +87,10 @@ defmodule Phod.SessionTest do
             "type" => "tool_use",
             "id" => "tu_1",
             "name" => "patch",
-            "input" => %{"path" => "new.txt", "diff" => diff}
-          }
+            "input" => %{"path" => "new.txt", "diff" => diff},
+          },
         ],
-        "stop_reason" => "tool_use"
+        "stop_reason" => "tool_use",
       })
     end)
 
@@ -100,7 +109,11 @@ defmodule Phod.SessionTest do
     assert File.read!(Path.join(root, "new.txt")) == "hello\n"
   end
 
-  test "a crashing agent run logs the crash reason and settles back to :idle", %{id: id, user: user, tree: tree} do
+  test "a crashing agent run logs the crash reason and settles back to :idle", %{
+    id: id,
+    user: user,
+    tree: tree,
+  } do
     Req.Test.stub(Phod.Session.LlmStub, fn _conn -> raise "boom" end)
 
     pid = start_and_allow(user, tree)
@@ -119,16 +132,21 @@ defmodule Phod.SessionTest do
     assert log =~ "boom"
   end
 
-  test "the session log records the user, tool calls, tool results and replies", %{id: id, root: root, user: user, tree: tree} do
+  test "the session log records the user, tool calls, tool results and replies", %{
+    id: id,
+    root: root,
+    user: user,
+    tree: tree,
+  } do
     log_path = Phod.Session.Log.path(root)
     on_exit(fn -> File.rm(log_path) end)
 
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
       Req.Test.json(conn, %{
         "content" => [
-          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}}
+          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}},
         ],
-        "stop_reason" => "tool_use"
+        "stop_reason" => "tool_use",
       })
     end)
 
@@ -174,6 +192,7 @@ defmodule Phod.SessionTest do
       File.mkdir_p!(root)
 
       assert {:ok, pid} = Phod.Session.ensure_started("octocat", tree)
+
       assert %{id: "octocat/" <> ^tree, worktrees: [{"octocat/" <> ^tree, ^root}]} =
                :sys.get_state(pid)
     end
@@ -228,23 +247,33 @@ defmodule Phod.SessionTest do
       assert other_id == Phod.Session.session_id(user, other)
     end
 
-    test "rejects a worktree that is already part of the session", %{user: user, tree: tree, id: id} do
+    test "rejects a worktree that is already part of the session", %{
+      user: user,
+      tree: tree,
+      id: id
+    } do
       {:ok, _pid} = Phod.Session.ensure_started(user, tree)
 
       assert {:error, :already_added} = Phod.Session.add_worktree(id, user, tree)
     end
 
-    test "rejects a worktree that is not a valid directory", %{user: user, tree: tree, id: id} do
+    test "rejects a worktree that is not a valid directory", %{
+      user: user,
+      tree: tree,
+      id: id
+    } do
       {:ok, _pid} = Phod.Session.ensure_started(user, tree)
       missing = "no-such-#{System.unique_integer([:positive])}"
 
-      assert {:error, {:invalid_worktree_root, _}} = Phod.Session.add_worktree(id, user, missing)
+      assert {:error, {:invalid_worktree_root, _}} =
+               Phod.Session.add_worktree(id, user, missing)
+
       assert %{worktrees: [^id]} = Phod.Session.get_snapshot(id)
     end
 
     test "an unknown session is :not_found" do
-      assert {:error, :not_found} = Phod.Session.add_worktree("nobody/none", "nobody", "none")
+      assert {:error, :not_found} =
+               Phod.Session.add_worktree("nobody/none", "nobody", "none")
     end
   end
-
 end

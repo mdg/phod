@@ -24,8 +24,10 @@ defmodule Phod.Session.LoopLimitTest do
   defp always_uses_a_tool do
     Req.Test.stub(Phod.Session.LlmStub, fn conn ->
       Req.Test.json(conn, %{
-        "content" => [%{"type" => "tool_use", "id" => "tu", "name" => "list_files", "input" => %{}}],
-        "stop_reason" => "tool_use"
+        "content" => [
+          %{"type" => "tool_use", "id" => "tu", "name" => "list_files", "input" => %{}}
+        ],
+        "stop_reason" => "tool_use",
       })
     end)
   end

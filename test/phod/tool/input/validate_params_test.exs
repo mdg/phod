@@ -8,7 +8,7 @@ defmodule Phod.Tool.Input.ValidateParamsTest do
   defp params do
     [
       Input.string(:script, "Elixir source", required: true),
-      Input.bool(:verbose, "Verbose output")
+      Input.bool(:verbose, "Verbose output"),
     ]
   end
 
@@ -36,7 +36,11 @@ defmodule Phod.Tool.Input.ValidateParamsTest do
              Input.validate_params(%{"script" => "  "}, params(), @session)
 
     assert {:error, msg} =
-             Input.validate_params(%{"script" => "ok", "verbose" => "yes"}, params(), @session)
+             Input.validate_params(
+               %{"script" => "ok", "verbose" => "yes"},
+               params(),
+               @session
+             )
 
     assert msg =~ "invalid boolean"
   end

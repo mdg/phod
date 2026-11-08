@@ -43,14 +43,15 @@ defmodule Phod.Tool.ElixirScriptTest do
 
     script = "File.write!(#{inspect(outside)}, \"escaped\")"
 
-    assert {:ok, %{exit_status: status}} = Tool.run("elixir_script", root, %{"script" => script})
+    assert {:ok, %{exit_status: status}} =
+             Tool.run("elixir_script", root, %{"script" => script})
 
     assert status != 0
     refute File.exists?(outside)
   end
 
   test "can read and write inside the worktree, visible on the host after the run", %{
-    root: root
+    root: root,
   } do
     write(root, "input.txt", "hello\n")
 
@@ -83,7 +84,7 @@ defmodule Phod.Tool.ElixirScriptTest do
   end
 
   test "a completed run leaves no stray message that could corrupt a later tool call", %{
-    root: root
+    root: root,
   } do
     # Regression guard: Rambo.run/3's own `:timeout` option schedules a
     # bare `:kill` message via Process.send_after/3 that is never
@@ -101,8 +102,12 @@ defmodule Phod.Tool.ElixirScriptTest do
     assert {:ok, %{entries: _entries}} = Tool.run("list_files", root, %{})
   end
 
-  test "the sandbox binds every session worktree and runs in the selected one", %{root: root} do
-    second = Path.join(Path.dirname(root), "es-second-#{System.unique_integer([:positive])}")
+  test "the sandbox binds every session worktree and runs in the selected one", %{
+    root: root
+  } do
+    second =
+      Path.join(Path.dirname(root), "es-second-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(second)
     on_exit(fn -> File.rm_rf!(second) end)
     worktrees = [{"u/first", root}, {"u/second", second}]
@@ -110,7 +115,10 @@ defmodule Phod.Tool.ElixirScriptTest do
     script = ~s|File.write!("#{second}/from_script.txt", "hi")\nIO.puts(File.cwd!())|
 
     assert {:ok, %{exit_status: 0, stdout: stdout}} =
-             Tool.run("elixir_script", worktrees, %{"script" => script, "worktree" => "u/second"})
+             Tool.run("elixir_script", worktrees, %{
+               "script" => script,
+               "worktree" => "u/second"
+             })
 
     assert File.read!(Path.join(second, "from_script.txt")) == "hi"
     assert String.trim(stdout) == second

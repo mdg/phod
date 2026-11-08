@@ -36,14 +36,14 @@ defmodule Phod.Tool.ListFiles do
         "path" => %{
           "type" => "string",
           "description" =>
-            "Directory path relative to the worktree root. Defaults to the root (\".\") when omitted."
+            "Directory path relative to the worktree root. Defaults to the root (\".\") when omitted.",
         },
         "all" => %{
           "type" => "boolean",
-          "description" => "Include hidden (dot) files. Defaults to false."
-        }
+          "description" => "Include hidden (dot) files. Defaults to false.",
+        },
       },
-      "required" => []
+      "required" => [],
     }
   end
 
@@ -75,7 +75,7 @@ defmodule Phod.Tool.ListFiles do
   `..`.
   """
   @spec parse_ls(String.t()) :: [
-          %{name: String.t(), type: String.t(), num_bytes: non_neg_integer()}
+          %{name: String.t(), type: String.t(), num_bytes: non_neg_integer()},
         ]
   def parse_ls(output) do
     output
@@ -165,8 +165,11 @@ defmodule Phod.Tool.ListFiles do
     |> String.split("\n", trim: true)
     |> Map.new(fn line ->
       case String.split(line, ":", parts: 2) do
-        [path, info] -> {Path.relative_to(String.trim(path), dir_abs), parse_mime_info(info)}
-        _ -> {line, @default_mime_info}
+        [path, info] ->
+          {Path.relative_to(String.trim(path), dir_abs), parse_mime_info(info)}
+
+        _ ->
+          {line, @default_mime_info}
       end
     end)
   end

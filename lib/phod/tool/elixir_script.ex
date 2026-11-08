@@ -147,7 +147,7 @@ defmodule Phod.Tool.ElixirScript do
              elixir_bin: elixir_bin,
              elixir_root: elixir_root,
              erlang_root: erlang_root,
-             erts_bin: erts_bin
+             erts_bin: erts_bin,
            }}
 
         [] ->
@@ -190,7 +190,7 @@ defmodule Phod.Tool.ElixirScript do
         "--",
         toolchain.elixir_bin,
         "-e",
-        script
+        script,
       ]
   end
 
@@ -207,7 +207,7 @@ defmodule Phod.Tool.ElixirScript do
         toolchain.elixir_root,
         "--ro-bind",
         toolchain.erlang_root,
-        toolchain.erlang_root
+        toolchain.erlang_root,
       ]
   end
 
@@ -218,7 +218,7 @@ defmodule Phod.Tool.ElixirScript do
       Path.join(toolchain.erlang_root, "bin"),
       toolchain.erts_bin,
       "/usr/bin",
-      "/bin"
+      "/bin",
     ]
     |> Enum.join(":")
   end

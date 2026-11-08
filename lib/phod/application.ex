@@ -17,7 +17,7 @@ defmodule Phod.Application do
       {Task.Supervisor, name: Phod.Session.TaskSupervisor},
       {Phod.Session.Supervisor, []},
       # Start to serve requests, typically the last entry
-      PhodWeb.Endpoint
+      PhodWeb.Endpoint,
     ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html

@@ -40,13 +40,16 @@ defmodule Phod.Tool.PatchTest do
   test "reports a failed hunk as an error and leaves the file untouched", %{root: root} do
     write(root, "hello.txt", "something else\n")
 
-    assert {:error, msg} = Tool.run("patch", root, %{"path" => "hello.txt", "diff" => @diff})
+    assert {:error, msg} =
+             Tool.run("patch", root, %{"path" => "hello.txt", "diff" => @diff})
+
     assert msg =~ "patch failed"
     assert File.read!(Path.join(root, "hello.txt")) == "something else\n"
   end
 
   test "rejects a path that escapes the worktree", %{root: root} do
-    assert {:error, _} = Tool.run("patch", root, %{"path" => "../escape.txt", "diff" => @diff})
+    assert {:error, _} =
+             Tool.run("patch", root, %{"path" => "../escape.txt", "diff" => @diff})
   end
 
   describe "diff format" do

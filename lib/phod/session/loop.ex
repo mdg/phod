@@ -28,10 +28,17 @@ defmodule Phod.Session.Loop do
   tool rounds in this run; by default it is the `:max_tool_rounds` config
   value (25 when unset).
   """
-  @spec run([map()], [{String.t(), String.t()}] | String.t(), on_event(), pos_integer() | nil) ::
+  @spec run(
+          [map()],
+          [{String.t(), String.t()}] | String.t(),
+          on_event(),
+          pos_integer() | nil
+        ) ::
           {:ok, [map()]} | {:error, String.t(), [map()]}
   def run(messages, worktrees, on_event, max_rounds \\ nil) do
-    max_rounds = max_rounds || Application.get_env(:phod, :max_tool_rounds, @default_max_rounds)
+    max_rounds =
+      max_rounds || Application.get_env(:phod, :max_tool_rounds, @default_max_rounds)
+
     worktrees = normalize_worktrees(worktrees)
     {_primary, primary_root} = hd(worktrees)
 
@@ -40,7 +47,7 @@ defmodule Phod.Session.Loop do
       on_event: on_event,
       # read per run, so edits to AGENTS.md apply from the next message on
       instructions: read_instructions(primary_root),
-      tools: Tool.anthropic_tools(Enum.map(worktrees, &elem(&1, 0)))
+      tools: Tool.anthropic_tools(Enum.map(worktrees, &elem(&1, 0))),
     }
 
     step(messages, ctx, max_rounds, max_rounds)
@@ -153,7 +160,7 @@ defmodule Phod.Session.Loop do
          path: payload.path,
          applied_hunks: payload.applied_hunks,
          created?: payload.created?,
-         at: DateTime.utc_now()
+         at: DateTime.utc_now(),
        }}
     )
   end

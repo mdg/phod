@@ -84,7 +84,9 @@ defmodule PhodWeb.SessionLive.Components do
     ~H"""
     <div class="mx-auto max-w-md space-y-4 py-12 text-center" data-role="not-found">
       <h1 class="text-xl font-semibold">Session "{@id}" hasn't been started</h1>
-      <p class="opacity-70">There is no worktree directory for it at <code phx-no-curly-interpolation>&lt;worktree_base&gt;/&lt;user&gt;/&lt;tree&gt;</code>.</p>
+      <p class="opacity-70">
+        There is no worktree directory for it at <code phx-no-curly-interpolation>&lt;worktree_base&gt;/&lt;user&gt;/&lt;tree&gt;</code>.
+      </p>
       <.button navigate={~p"/"} variant="primary">Go to home</.button>
     </div>
     """
@@ -100,7 +102,11 @@ defmodule PhodWeb.SessionLive.Components do
   def chat_pane(assigns) do
     ~H"""
     <div class="flex flex-col h-full min-h-0" data-role="chat">
-      <div class="flex-1 min-h-0 overflow-auto space-y-2 p-2" id="transcript" data-role="transcript">
+      <div
+        class="flex-1 min-h-0 overflow-auto space-y-2 p-2"
+        id="transcript"
+        data-role="transcript"
+      >
         <div :for={{item, idx} <- Enum.with_index(@transcript)} id={"transcript-item-#{idx}"}>
           <.message_block :if={item.kind == :text} item={item} />
           <.tool_call_block :if={item.kind == :tool_call} item={item} />
@@ -121,6 +127,7 @@ defmodule PhodWeb.SessionLive.Components do
       <.form
         for={@form}
         id="message-form"
+        phx-hook=".MessageForm"
         phx-submit="send_message"
         class="flex gap-2 p-2 border-t"
       >
@@ -136,6 +143,13 @@ defmodule PhodWeb.SessionLive.Components do
           Send
         </.button>
       </.form>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".MessageForm">
+        export default {
+          mounted() {
+            this.handleEvent("clear-message", () => this.el.reset())
+          }
+        }
+      </script>
     </div>
     """
   end
@@ -159,7 +173,11 @@ defmodule PhodWeb.SessionLive.Components do
 
   def tool_call_block(assigns) do
     ~H"""
-    <details class="border rounded px-2 py-1 text-sm" data-role="tool-call" data-name={@item.name}>
+    <details
+      class="border rounded px-2 py-1 text-sm"
+      data-role="tool-call"
+      data-name={@item.name}
+    >
       <summary class="cursor-pointer font-mono">{@item.name} · {tool_summary(@item)}</summary>
       <div class="mt-2 space-y-1 pl-2">
         <pre
@@ -413,27 +431,38 @@ defmodule PhodWeb.SessionLive.Components do
 
   def editor_pane(assigns) do
     ~H"""
-    <div class="border rounded h-full min-h-0 overflow-auto p-2 text-sm font-mono" data-role="editor">
+    <div
+      class="border rounded h-full min-h-0 overflow-auto p-2 text-sm font-mono"
+      data-role="editor"
+    >
       <%= cond do %>
         <% @selected_path == nil -> %>
           <p class="opacity-60 italic p-2">Select a file to view it here.</p>
         <% @selected_error -> %>
           <p class="text-red-600 p-2">{@selected_error}</p>
         <% @selected_symlink? -> %>
-          <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">{@selected_path}</p>
+          <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">
+            {@selected_path}
+          </p>
           <p class="opacity-60 italic p-2" data-role="editor-symlink-notice">
             This is a symlink.
           </p>
         <% @selected_image -> %>
-          <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">{@selected_path}</p>
+          <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">
+            {@selected_path}
+          </p>
           <img src={@selected_image} class="max-w-full" />
         <% @selected_binary? -> %>
-          <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">{@selected_path}</p>
+          <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">
+            {@selected_path}
+          </p>
           <p class="opacity-60 italic p-2" data-role="editor-binary-notice">
             This file is binary and can't be displayed here.
           </p>
         <% true -> %>
-          <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">{@selected_path}</p>
+          <p class="px-2 py-1 font-semibold border-b" data-role="editor-path">
+            {@selected_path}
+          </p>
           <div :for={{number, text} <- @selected_lines} class="flex gap-2">
             <span class="opacity-50 select-none w-10 text-right shrink-0">{number}</span>
             <span class="whitespace-pre">{text}</span>

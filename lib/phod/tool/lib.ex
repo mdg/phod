@@ -34,7 +34,10 @@ defmodule Phod.Tool.Lib do
     case File.read(path) do
       {:ok, content} ->
         trailing_newline? = String.ends_with?(content, "\n")
-        content = if trailing_newline?, do: String.trim_trailing(content, "\n"), else: content
+
+        content =
+          if trailing_newline?, do: String.trim_trailing(content, "\n"), else: content
+
         {:ok, String.split(content, "\n"), trailing_newline?}
 
       {:error, reason} ->

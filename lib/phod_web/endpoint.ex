@@ -8,7 +8,7 @@ defmodule PhodWeb.Endpoint do
     store: :cookie,
     key: "_phod_key",
     signing_salt: "9guSaf6n",
-    same_site: "Lax"
+    same_site: "Lax",
   ]
 
   socket "/live", Phoenix.LiveView.Socket,

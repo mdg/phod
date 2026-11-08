@@ -175,7 +175,9 @@ defmodule PhodWeb.SessionLive.Show do
   end
 
   defp refresh_tree(socket) do
-    tree = FileTree.refresh_expanded(socket.assigns.tree, socket.assigns.snapshot.worktree_root)
+    tree =
+      FileTree.refresh_expanded(socket.assigns.tree, socket.assigns.snapshot.worktree_root)
+
     assign(socket, :tree, tree)
   end
 
@@ -186,7 +188,14 @@ defmodule PhodWeb.SessionLive.Show do
       text -> Session.send_message(socket.assigns.id, text, socket.assigns.display_name)
     end
 
-    {:noreply, assign(socket, :form, to_form(%{"text" => ""}, as: :message))}
+    # Clearing the server-side assign alone doesn't clear the focused input in
+    # the browser, so tell the form's hook to reset the DOM too.
+    socket =
+      socket
+      |> assign(:form, to_form(%{"text" => ""}, as: :message))
+      |> push_event("clear-message", %{})
+
+    {:noreply, socket}
   end
 
   def handle_event("toggle_dir", %{"path" => path}, socket) do

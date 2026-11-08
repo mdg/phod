@@ -27,7 +27,7 @@ config :phod, PhodWeb.Endpoint,
   secret_key_base: "GEcgySfJAzCJU36GPsbVT8SrCUlRkRObkzCQi42t1bzUQsiAg8gOpDp/d2Dw3A41",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:phod, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:phod, ~w(--watch)]}
+    tailwind: {Tailwind, :install_and_run, [:phod, ~w(--watch)]},
   ]
 
 # ## SSL Support

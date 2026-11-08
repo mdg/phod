@@ -45,7 +45,7 @@ defmodule Phod.ToolTest do
       Enum.find(Tool.anthropic_tools(), &(&1["name"] == "patch"))
 
     refute Map.has_key?(schema["properties"], "allow_new_path")
-    assert Enum.sort(Map.keys(schema["properties"])) == ["diff", "path"]
+    assert Enum.sort(Map.keys(schema["properties"])) == ["diff", "goal", "path"]
   end
 
   test "run/3 returns an error for unknown tool names" do
@@ -121,6 +121,13 @@ defmodule Phod.ToolTest do
                  "paths" => ["first.txt"],
                  "worktree" => "x",
                })
+    end
+  end
+
+  test "every tool requires a goal, which is the first thing the model writes for a call" do
+    for %{"input_schema" => schema} <- Tool.anthropic_tools() do
+      assert "goal" in schema["required"]
+      assert schema["properties"]["goal"]["type"] == "string"
     end
   end
 end

@@ -17,6 +17,8 @@ defmodule Phod.Session.Loop do
 
   @default_max_rounds 25
 
+  @goal_error "goal is required: a one-line description of what this call is for"
+
   @not_run_reason "not run: the tool round limit for this request has been reached"
   @wrap_up "You have used every tool round for this request, so no more tool calls " <>
              "will run. Summarize what you found, what you changed if anything, and " <>
@@ -134,11 +136,25 @@ defmodule Phod.Session.Loop do
     input = Map.get(block, "input", %{})
 
     if name do
-      result = Tool.run(name, ctx.worktrees, input)
+      result = run_tool(name, input, ctx.worktrees)
       record_edit(name, input, result, ctx)
       tool_result_block(id, result)
     else
       tool_result_block(id, {:error, "unknown tool: #{inspect(name)}"})
+    end
+  end
+
+  # Every tool call needs a goal: one line saying what the call is for. A
+  # missing or blank goal is an error the model sees, so it supplies one.
+  defp run_tool(name, input, worktrees) do
+    case Map.get(input, "goal") do
+      goal when is_binary(goal) and goal != "" ->
+        if String.trim(goal) == "",
+          do: {:error, @goal_error},
+          else: Tool.run(name, worktrees, input)
+
+      _missing ->
+        {:error, @goal_error}
     end
   end
 

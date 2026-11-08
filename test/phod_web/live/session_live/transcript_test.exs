@@ -112,4 +112,38 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
       assert Transcript.recent_edit_paths(edits, 0) == ["a.ex", "b.ex"]
     end
   end
+
+  describe "tool call goals" do
+    test "a tool call's goal is a phod message directly above the call" do
+      messages = [
+        %{
+          "role" => "assistant",
+          "content" => [
+            %{
+              "type" => "tool_use",
+              "id" => "tu_1",
+              "name" => "grep",
+              "input" => %{"goal" => "find the route", "patterns" => ["nfl"]}
+            }
+          ]
+        }
+      ]
+
+      assert [
+               %{kind: :text, role: "phod", text: "find the route"},
+               %{kind: :tool_call, id: "tu_1", name: "grep"}
+             ] = Transcript.build(messages)
+    end
+
+    test "a tool call without a goal shows only the call" do
+      messages = [
+        %{
+          "role" => "assistant",
+          "content" => [%{"type" => "tool_use", "id" => "tu_1", "name" => "grep", "input" => %{}}]
+        }
+      ]
+
+      assert [%{kind: :tool_call}] = Transcript.build(messages)
+    end
+  end
 end

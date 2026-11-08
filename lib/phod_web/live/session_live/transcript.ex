@@ -74,21 +74,29 @@ defmodule PhodWeb.SessionLive.Transcript do
     end
   end
 
+  # A tool call's goal is shown as a Phod message just above the call.
+  defp goal_items(%{"goal" => goal}) when is_binary(goal) do
+    if String.trim(goal) == "", do: [], else: [%{kind: :text, role: "phod", text: goal}]
+  end
+
+  defp goal_items(_input), do: []
+
   defp message_items(%{"role" => "assistant", "content" => blocks}, results) do
     Enum.flat_map(blocks, fn
       %{"type" => "text", "text" => text} ->
         [%{kind: :text, role: "assistant", text: text}]
 
       %{"type" => "tool_use", "id" => id, "name" => name, "input" => input} ->
-        [
-          %{
-            kind: :tool_call,
-            id: id,
-            name: name,
-            input: input,
-            result: Map.get(results, id, :pending),
-          },
-        ]
+        goal_items(input) ++
+          [
+            %{
+              kind: :tool_call,
+              id: id,
+              name: name,
+              input: input,
+              result: Map.get(results, id, :pending),
+            },
+          ]
 
       _other ->
         []

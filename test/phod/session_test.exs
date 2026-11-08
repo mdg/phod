@@ -93,7 +93,7 @@ defmodule Phod.SessionTest do
             "type" => "tool_use",
             "id" => "tu_1",
             "name" => "patch",
-            "input" => %{"path" => "new.txt", "diff" => diff},
+            "input" => %{"goal" => "test goal", "path" => "new.txt", "diff" => diff},
           },
         ],
         "stop_reason" => "tool_use",
@@ -150,7 +150,7 @@ defmodule Phod.SessionTest do
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
       Req.Test.json(conn, %{
         "content" => [
-          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}},
+          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{"goal" => "test goal"}},
         ],
         "stop_reason" => "tool_use",
       })

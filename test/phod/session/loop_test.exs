@@ -17,6 +17,8 @@ defmodule Phod.Session.LoopTest do
   end
 
   defp tool_use_response(id, name, input) do
+    input = Map.put_new(input, "goal", "test goal")
+
     fn conn ->
       Req.Test.json(conn, %{
         "content" => [%{"type" => "tool_use", "id" => id, "name" => name, "input" => input}],
@@ -266,7 +268,7 @@ defmodule Phod.Session.LoopTest do
 
       Req.Test.json(conn, %{
         "content" => [
-          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}},
+          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{"goal" => "test goal"}},
         ],
         "stop_reason" => "tool_use",
       })
@@ -312,13 +314,13 @@ defmodule Phod.Session.LoopTest do
             "type" => "tool_use",
             "id" => "tu_read",
             "name" => "read_files",
-            "input" => %{"paths" => ["b.txt"], "worktree" => "u/second"},
+            "input" => %{"goal" => "test goal", "paths" => ["b.txt"], "worktree" => "u/second"},
           },
           %{
             "type" => "tool_use",
             "id" => "tu_patch",
             "name" => "patch",
-            "input" => %{"path" => "new.txt", "diff" => diff, "worktree" => "u/second"},
+            "input" => %{"goal" => "test goal", "path" => "new.txt", "diff" => diff, "worktree" => "u/second"},
           },
         ],
         "stop_reason" => "tool_use",
@@ -342,5 +344,31 @@ defmodule Phod.Session.LoopTest do
 
     assert [%{worktree: "u/second", path: "new.txt"}] =
              for({:edit_recorded, edit} <- events.(), do: edit)
+  end
+
+  test "a tool call without a goal is an error, and the tool does not run", %{root: root} do
+    write(root, "keep.txt", "keep me\n")
+
+    Req.Test.expect(
+      Phod.Session.LlmStub,
+      fn conn ->
+        Req.Test.json(conn, %{
+          "content" => [
+            %{"type" => "tool_use", "id" => "tu_1", "name" => "rm", "input" => %{"paths" => ["keep.txt"]}}
+          ],
+          "stop_reason" => "tool_use"
+        })
+      end
+    )
+
+    Req.Test.expect(Phod.Session.LlmStub, text_response("ok"))
+
+    {on_event, events} = collect_events()
+    assert {:ok, _} = Loop.run([user_message("remove it")], root, on_event)
+
+    [_assistant, %{"content" => [tool_result]}, _final] = events.() |> Enum.map(&elem(&1, 1))
+    assert tool_result["is_error"] == true
+    assert tool_result["content"] =~ "goal is required"
+    assert File.read!(Path.join(root, "keep.txt")) == "keep me\n"
   end
 end

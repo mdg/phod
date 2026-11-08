@@ -39,9 +39,18 @@ defmodule Phod.Tool do
           ]
   def specs(worktree_names \\ []) do
     for {tool, true} <- @tools do
-      schema = tool.params() |> Input.to_schema() |> with_worktree_property(worktree_names)
+      schema =
+        [goal_param() | tool.params()]
+        |> Input.to_schema()
+        |> with_worktree_property(worktree_names)
       %{name: tool.name(), description: tool.description(), input_schema: schema}
     end
+  end
+
+  # Every call must say what it is for. The loop enforces it (see
+  # `Phod.Session.Loop`); it's declared here so the model sees it in the schema.
+  defp goal_param do
+    Input.string(:goal, "One line: what this call is for.", required: true)
   end
 
   # Only sessions with more than one worktree need to tell the tools which

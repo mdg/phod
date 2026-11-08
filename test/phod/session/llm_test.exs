@@ -76,7 +76,7 @@ defmodule Phod.Session.LlmTest do
   end
 
   test "the static system prompt names no tools" do
-    for tool <- ~w(list_files read_file grep patch rustc elixir_script) do
+    for tool <- ~w(list_files read_files grep patch rm rustc elixir_script) do
       refute Llm.system_prompt() =~ tool
     end
   end

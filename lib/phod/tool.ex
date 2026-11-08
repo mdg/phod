@@ -11,9 +11,9 @@ defmodule Phod.Tool do
   @tools %{
     __MODULE__.ElixirScript => false,
     __MODULE__.Grep => true,
-    __MODULE__.ReadFile => true,
     __MODULE__.ListFiles => true,
     __MODULE__.Patch => true,
+    __MODULE__.ReadFiles => true,
     __MODULE__.Rm => true,
     __MODULE__.Rustc => true,
   }

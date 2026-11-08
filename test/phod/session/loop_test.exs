@@ -104,7 +104,7 @@ defmodule Phod.Session.LoopTest do
   test "a tool error is reported but does not abort the loop", %{root: root} do
     Req.Test.expect(
       Phod.Session.LlmStub,
-      tool_use_response("tu_1", "read_file", %{"path" => "missing.txt"})
+      tool_use_response("tu_1", "read_files", %{"paths" => ["missing.txt"]})
     )
 
     Req.Test.expect(Phod.Session.LlmStub, text_response("ok, it's missing"))
@@ -245,8 +245,8 @@ defmodule Phod.Session.LoopTest do
 
       Req.Test.json(conn, %{
         "content" => [
-          %{"type" => "tool_use", "id" => "tu_read", "name" => "read_file",
-            "input" => %{"path" => "b.txt", "worktree" => "u/second"}},
+          %{"type" => "tool_use", "id" => "tu_read", "name" => "read_files",
+            "input" => %{"paths" => ["b.txt"], "worktree" => "u/second"}},
           %{"type" => "tool_use", "id" => "tu_patch", "name" => "patch",
             "input" => %{"path" => "new.txt", "diff" => diff, "worktree" => "u/second"}}
         ],

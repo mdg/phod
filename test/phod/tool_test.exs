@@ -18,7 +18,7 @@ defmodule Phod.ToolTest do
     assert length(tools) == 6
 
     names = Enum.map(tools, & &1["name"])
-    assert Enum.sort(names) == ["grep", "list_files", "patch", "read_file", "rm", "rustc"]
+    assert Enum.sort(names) == ["grep", "list_files", "patch", "read_files", "rm", "rustc"]
 
     for tool <- tools do
       assert %{"name" => name, "description" => description, "input_schema" => schema} = tool
@@ -72,25 +72,28 @@ defmodule Phod.ToolTest do
     end
 
     test "defaults to the first worktree when none is named", %{worktrees: worktrees} do
-      assert {:ok, %{content: "1: from first"}} = Tool.run("read_file", worktrees, %{"path" => "first.txt"})
+      assert {:ok, %{files: [%{content: "1: from first"}]}} =
+               Tool.run("read_files", worktrees, %{"paths" => ["first.txt"]})
     end
 
     test "acts on the named worktree", %{worktrees: worktrees} do
-      assert {:ok, %{content: "1: from second"}} =
-               Tool.run("read_file", worktrees, %{"path" => "second.txt", "worktree" => "u/second"})
+      assert {:ok, %{files: [%{content: "1: from second"}]}} =
+               Tool.run("read_files", worktrees, %{"paths" => ["second.txt"], "worktree" => "u/second"})
     end
 
     test "a file that is only in another worktree is not found by default", %{worktrees: worktrees} do
-      assert {:error, _} = Tool.run("read_file", worktrees, %{"path" => "second.txt"})
+      assert {:error, "paths: invalid path"} =
+               Tool.run("read_files", worktrees, %{"paths" => ["second.txt"]})
     end
 
     test "an unknown worktree name is an error", %{worktrees: worktrees} do
-      assert {:error, msg} = Tool.run("read_file", worktrees, %{"path" => "first.txt", "worktree" => "u/nope"})
+      assert {:error, msg} =
+               Tool.run("read_files", worktrees, %{"paths" => ["first.txt"], "worktree" => "u/nope"})
       assert msg =~ ~S(unknown worktree "u/nope")
     end
 
     test "with one worktree, a worktree name is ignored", %{worktrees: [first | _]} do
-      assert {:ok, _} = Tool.run("read_file", [first], %{"path" => "first.txt", "worktree" => "x"})
+      assert {:ok, _} = Tool.run("read_files", [first], %{"paths" => ["first.txt"], "worktree" => "x"})
     end
   end
 end

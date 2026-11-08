@@ -209,7 +209,7 @@ defmodule PhodWeb.SessionLive.Show do
   # triggered this (set from the `list_files` tool's own `type`/
   # `mime_type`/`charset`, both in the file tree and in the chat
   # transcript). Clicks with no such tool result nearby (e.g. a `grep`
-  # match or `read_file`'s own link) arrive with all three `nil` and just
+  # match or `read_files`'s own link) arrive with all three `nil` and just
   # fall back to the code viewer — we don't run `file` again to find out.
   #
   # Symlinks are handled before path resolution: `Tool.Input`'s
@@ -250,9 +250,12 @@ defmodule PhodWeb.SessionLive.Show do
         assign_selected(socket, path: path, binary?: true)
 
       true ->
-        case Phod.Tool.run("read_file", root, %{"path" => path}) do
-          {:ok, %{content: content}} ->
+        case Phod.Tool.run("read_files", root, %{"paths" => [path]}) do
+          {:ok, %{files: [%{content: content}]}} ->
             assign_selected(socket, path: path, lines: parse_numbered_lines(content))
+
+          {:ok, %{files: [%{error: reason}]}} ->
+            assign_selected(socket, path: path, error: reason)
 
           {:error, reason} ->
             assign_selected(socket, path: path, error: reason)

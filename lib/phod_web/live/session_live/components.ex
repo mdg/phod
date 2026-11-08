@@ -230,16 +230,22 @@ defmodule PhodWeb.SessionLive.Components do
     """
   end
 
-  def tool_result_body(%{name: "read_file"} = assigns) do
+  def tool_result_body(%{name: "read_files"} = assigns) do
     ~H"""
-    <button
-      type="button"
-      phx-click="open_file"
-      phx-value-path={@payload["path"]}
-      class="hover:underline"
-    >
-      open {@payload["path"]}
-    </button>
+    <ul class="space-y-1">
+      <li :for={file <- @payload["files"]}>
+        <button
+          :if={is_nil(file["error"])}
+          type="button"
+          phx-click="open_file"
+          phx-value-path={file["path"]}
+          class="hover:underline"
+        >
+          open {file["path"]}
+        </button>
+        <span :if={file["error"]}>{file["error"]}</span>
+      </li>
+    </ul>
     """
   end
 

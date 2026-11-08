@@ -26,7 +26,7 @@ defmodule Phod.Tool.Lib do
 
   @doc """
   Splits a file's content into line strings, preserving whether the
-  file ended with a newline. Used by both `read_file` (for numbered output) and
+  file ended with a newline. Used by both `read_files` (for numbered output) and
   `patch` (for writing back atomically).
   """
   @spec read_lines(String.t()) :: {:ok, [String.t()], boolean()} | {:error, atom()}

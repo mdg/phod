@@ -13,10 +13,16 @@ Two kinds of relationship, defined so they read the same from either side.
   two ends are **peers**: from either session's point of view, the other one is
   its peer.
 - **Message** — one communication from a **sender** session to a **receiver**
-  session. A message has a **kind** (`send`, `ask`, or `reply`) and a flag
+  session. A message has a **kind** (`send` or `reply`) and a flag
   `want_reply` for `send`.
-- **Restricted run** — an agent run started by a message from another session.
-  It can only `reply` (see below).
+- **Run** — one agent run: from a message arriving at an idle session until the
+  model finishes, errors, or hits the round limit. The session is
+  `status: :running` for the whole run, as it is now.
+- **Run mode** — what a run is handling, set when the run starts:
+  - `:user` — a prompt from the session's user. The run has all its tools.
+  - `:peer` — a message from another session. The run can use its own worktree
+    tools and `reply`, but not `send` or any tool that acts on another session
+    (see below).
 
 Words like "local" and "remote" are avoided. A session that sends a message is
 the sender of that message, whatever session it is.
@@ -69,42 +75,39 @@ Sends a prompt to a peer, the start of an exchange.
 Sends the receiver's answer back to the sender of the message it's handling.
 
 - **Parameters:**
-  - `kind` (required): `ask` or `final`.
-    - `ask` — a question, or a request for more detail or instruction. The
-      sender answers with a `reply` of its own.
-    - `final` — the receiver's final response to the sender.
-  - `text` (required, non-empty string).
+  - `text` (required, non-empty string): the receiver's final response to the
+    sender.
   - `goal` (required, from the common goal parameter).
 - **Behaviour:** delivered to the session that sent the message being handled.
   The sender sees it as a message from the receiver, and its transcript shows
   the kind.
 - **Result:** `{:ok, %{to: id, status: :started | :queued}}`.
 
-### Restriction
+### Peer mode
 
-A restricted run can't use `send` or any tool that acts on another session. It
-can use its own worktree tools, and `reply`, and nothing else across sessions.
-This takes the place of a chain: a message can't lead to a third session,
-because the session that receives it has no way to contact one.
+A run in `:peer` mode can't use `send` or any tool that acts on another session.
+It can use its own worktree tools, and `reply`, and nothing else across
+sessions. This takes the place of a chain: a message can't lead to a third
+session, because the session that receives it has no way to contact one.
 
-- The restriction is set when the run starts, from the message that started it.
-  It lasts for that run only.
-- A restricted run's `reply` goes only to the session that sent the message.
-- A session that sent a `send` is not restricted, so it can answer an `ask` by
-  sending another message in the same exchange. A session that receives an
-  `ask` is restricted, so it answers with a `reply`.
+- The mode is set when the run starts, from the message that started it, and
+  lasts for that run only.
+- A `:peer` run's `reply` goes only to the session that sent the message.
+- A session that sent a `send` is not in peer mode, since its own run started
+  from its user. A session that received a `send` runs in peer mode, so its
+  answer is a `reply`.
 
 ### Message shape
 
 Each message carries its sender, kind, and `want_reply`. The receiver's
-transcript shows the sender's session id, the kind, and the text. A message with
-`want_reply: true` ends with a `final` reply from the receiver. Nothing enforces
+transcript shows the sender's session id, the kind, and the text. A `send` with
+`want_reply: true` ends with a `reply` from the receiver. Nothing enforces
 that beyond the prompt, so the receiver's round limit and goal rules still apply.
 
 Tests: `send` starts or queues the receiver's run and the queued result is
-returned; the sender appears in the receiver's transcript; a restricted run is
-not offered `send`; a restricted `reply` goes to the sender only; a one-way peer
-can't be messaged in the wrong direction; `ask` and `final` are shown differently.
+returned; the sender appears in the receiver's transcript; a `:peer` run is not
+offered `send`; a `:peer` run's `reply` goes to the sender only; a one-way peer
+can't be messaged in the wrong direction; `send` and `reply` are shown differently.
 
 ## Step 3 (optional): run tools in a peer's worktrees
 
@@ -118,7 +121,7 @@ Lets a session's tools act on a peer's worktrees.
   within the peer's worktrees.
 - `allow_writes` still controls whether a command can write. The peer's
   sandbox is unchanged.
-- Restricted runs get no `peer` parameter.
+- `:peer` runs get no `peer` parameter.
 - Results and edits are attributed to the peer: the edit event carries `peer`,
   and the transcript shows which session the call ran in.
 
@@ -127,10 +130,10 @@ with the peer's own agent. See the questions below.
 
 ## Questions to settle before building
 
-1. **Restricted runs and worktree tools.** The plan lets a restricted run use
-   its own worktree tools. Should it also be limited to read-only tools?
-2. **Exchange length.** Nothing limits how many `ask`/`reply` rounds two
-   sessions run. Should there be a cap per exchange, or is the round limit
+1. **Peer-mode runs and worktree tools.** The plan lets a `:peer` run use its
+   own worktree tools. Should it also be limited to read-only tools?
+2. **Exchange length.** Nothing limits how many rounds of `send` and `reply`
+   two sessions run. Should there be a cap per exchange, or is the round limit
    per run enough?
 3. **Remote writes while the peer is busy (step 3):** refuse, queue, or allow?
    Refusing is safest.
@@ -140,7 +143,7 @@ with the peer's own agent. See the questions below.
 ## Build order
 
 1. Step 1 — `connect/3`, `disconnect/2`, `peers/1`, snapshot, tests (iex only).
-2. Step 2 — message kinds and `want_reply` on messages, restriction for
+2. Step 2 — message kinds and `want_reply` on messages, run modes for
    runs started by messages, the `send` and `reply` tools, queue reporting,
    UI for the sender and kind, tests.
 3. Step 3 — `Session.worktrees/1`, the `peer` parameter, routing in the loop,

@@ -107,4 +107,45 @@ defmodule PhodWeb.SessionLive.ToolCallTest do
       refute html =~ "tool-call-cmd"
     end
   end
+
+  describe "peer calls" do
+    test "a send names the peer it went to" do
+      item = %{
+        id: "tu_s",
+        kind: :tool_call,
+        name: "send",
+        input: %{"peer" => "tester/other", "prompt" => "do it", "goal" => "g"},
+        result: {:ok, %{"peer" => "tester/other", "status" => "started"}}
+      }
+
+      html = render_component(&Components.tool_call_block/1, item: item)
+      assert html =~ "send · to tester/other"
+    end
+
+    test "a reply says it replies to the sender" do
+      item = %{
+        id: "tu_r",
+        kind: :tool_call,
+        name: "reply",
+        input: %{"text" => "done", "goal" => "g"},
+        result: {:ok, %{"to" => "tester/other", "status" => "started"}}
+      }
+
+      html = render_component(&Components.tool_call_block/1, item: item)
+      assert html =~ "reply · reply to sender"
+    end
+
+    test "a read in a peer's worktree names the peer" do
+      item = %{
+        id: "tu_g",
+        kind: :tool_call,
+        name: "grep",
+        input: %{"patterns" => ["alpha"], "peer" => "tester/other", "goal" => "g"},
+        result: {:ok, %{"matches" => [], "truncated?" => false, "patterns" => ["alpha"]}}
+      }
+
+      html = render_component(&Components.tool_call_block/1, item: item)
+      assert html =~ "tester/other · alpha"
+    end
+  end
 end

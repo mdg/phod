@@ -78,6 +78,56 @@ defmodule Phod.Tool do
     end
   end
 
+  @doc """
+  The tools offered for one agent run, in the shape the Messages API expects:
+
+    * `:send_to`: peer session ids. Non-empty offers `send`, with these as its
+      `peer` choices.
+    * `:reply`: offers `reply`.
+    * `:peer_reads`: peer session ids. Non-empty adds an optional `peer` to the
+      read-only tools (see `peer_readable?/1`), with these as its choices.
+  """
+  @spec loop_tools(keyword()) :: [map()]
+  def loop_tools(opts \\ []) do
+    send_to = Keyword.get(opts, :send_to, [])
+    reply? = Keyword.get(opts, :reply, false)
+    peer_reads = Keyword.get(opts, :peer_reads, [])
+
+    base =
+      for {tool, true} <- @tools do
+        spec(tool, if(peer_readable?(tool.name()), do: peer_reads, else: []))
+      end
+
+    send = if send_to == [], do: [], else: [spec(__MODULE__.Send, send_to)]
+    reply = if reply?, do: [spec(__MODULE__.Reply, [])], else: []
+
+    base ++ send ++ reply
+  end
+
+  @doc """
+  True for the read-only tools, which may run in a peer's worktree. Writes into
+  a peer go through a `send` instead.
+  """
+  @spec peer_readable?(String.t()) :: boolean()
+  def peer_readable?(name), do: Enum.any?(@remote_tools, &(&1.name() == name))
+
+  defp spec(tool, peers) do
+    schema =
+      [goal_param() | tool.params()]
+      |> Input.to_schema()
+      |> add_peer_choices(peers)
+
+    %{"name" => tool.name(), "description" => tool.description(), "input_schema" => schema}
+  end
+
+  defp add_peer_choices(schema, []), do: schema
+
+  defp add_peer_choices(schema, peers) do
+    props = schema["properties"]
+    prop = Map.get(props, "peer", %{"type" => "string", "description" => "The peer session."})
+    Map.put(schema, "properties", Map.put(props, "peer", Map.put(prop, "enum", peers)))
+  end
+
   defp fetch_tool(name) do
     case Map.fetch(@names, name) do
       {:ok, tool} -> {:ok, tool}

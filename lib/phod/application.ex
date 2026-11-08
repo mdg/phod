@@ -15,6 +15,7 @@ defmodule Phod.Application do
       PhodWeb.Presence,
       {Registry, keys: :unique, name: Phod.Session.Registry},
       {Task.Supervisor, name: Phod.Session.TaskSupervisor},
+      Phod.Session.Connections,
       {Phod.Session.Supervisor, []},
       # Start to serve requests, typically the last entry
       PhodWeb.Endpoint,

@@ -32,7 +32,7 @@ defmodule Phod.Session do
 
   import Rexult, only: [rexult: 1, ok_and_then: 2, ok?: 1]
 
-  alias Phod.Session.{Llm, Log, Loop}
+  alias Phod.Session.{Connections, Llm, Log, Loop}
 
   defstruct [
     :id,
@@ -48,6 +48,9 @@ defmodule Phod.Session do
     edits: [],
     last_error: nil,
     task_ref: nil,
+    # the task running the current run, and the peers whose reply it awaits
+    task_pid: nil,
+    awaiting: MapSet.new(),
   ]
 
   @idle_timeout :timer.minutes(30)
@@ -148,6 +151,90 @@ defmodule Phod.Session do
   end
 
   @doc """
+  Connects two running sessions, from the iex console. `mode: :mutual` (the
+  default) lets each send messages to the other; `mode: :one_way` lets `a`
+  send to `b` only. Both sessions' snapshots are updated to show the peers.
+  """
+  @spec connect(String.t(), String.t(), keyword()) :: :ok | {:error, term()}
+  def connect(a, b, opts \\ []) do
+    mode = Keyword.get(opts, :mode, :mutual)
+
+    cond do
+      a == b -> {:error, :self}
+      mode not in [:mutual, :one_way] -> {:error, {:invalid_mode, mode}}
+      whereis(a) == :error -> {:error, {:not_found, a}}
+      whereis(b) == :error -> {:error, {:not_found, b}}
+      Connections.link?(a, b) -> {:error, :already_connected}
+      true ->
+        Connections.add_link(a, b)
+        if mode == :mutual, do: Connections.add_link(b, a)
+        notify(a)
+        notify(b)
+        :ok
+    end
+  end
+
+  @doc """
+  Removes the connection between two sessions, in both directions.
+  """
+  @spec disconnect(String.t(), String.t()) :: :ok | {:error, :not_connected}
+  def disconnect(a, b) do
+    if Connections.link?(a, b) or Connections.link?(b, a) do
+      Connections.remove_link(a, b)
+      Connections.remove_link(b, a)
+      notify(a)
+      notify(b)
+      :ok
+    else
+      {:error, :not_connected}
+    end
+  end
+
+  @doc """
+  The sessions `id` may send messages to.
+  """
+  @spec peers(String.t()) :: [String.t()]
+  def peers(id), do: Connections.peers(id)
+
+  @doc """
+  Delivers a prompt from peer `from` to session `to`. Returns `{:ok, :started}`
+  if it starts a run, `{:ok, :queued}` if `to` is busy, or an error.
+  """
+  @spec deliver(String.t(), String.t(), String.t(), boolean()) ::
+          {:ok, :started | :queued} | {:error, term()}
+  def deliver(to, from, prompt, want_reply) do
+    case whereis(to) do
+      {:ok, pid} -> GenServer.call(pid, {:peer_send, from, prompt, want_reply})
+      :error -> {:error, {:not_found, to}}
+    end
+  end
+
+  @doc """
+  Delivers a reply from `from` to session `to`: into the run waiting for it, or
+  as a new run if none is waiting.
+  """
+  @spec deliver_reply(String.t(), String.t(), String.t()) ::
+          {:ok, :started | :queued} | {:error, term()}
+  def deliver_reply(to, from, text) do
+    case whereis(to) do
+      {:ok, pid} -> GenServer.call(pid, {:peer_reply, from, text})
+      :error -> {:error, {:not_found, to}}
+    end
+  end
+
+  @doc """
+  The session's worktrees as `[{name, root}]`. A session has one worktree, so
+  this is always a single entry.
+  """
+  @spec worktrees(String.t()) :: {:ok, [{String.t(), String.t()}]} | {:error, term()}
+  def worktrees(id) do
+    case whereis(id) do
+      {:ok, pid} -> GenServer.call(pid, :worktrees)
+      :error -> {:error, {:not_found, id}}
+    end
+  end
+
+  @doc """
   Appends `text` as a user message from `sender` (the user's display name,
   used in the session log) and kicks off the agent loop. Returns immediately
   without waiting for the loop to finish.
@@ -169,6 +256,11 @@ defmodule Phod.Session do
     else
       :error -> {:error, :not_found}
     end
+  end
+
+  # Asks a session to re-broadcast its snapshot (e.g. after its peers change).
+  defp notify(id) do
+    with {:ok, pid} <- whereis(id), do: GenServer.cast(pid, :broadcast)
   end
 
   @doc false
@@ -206,13 +298,63 @@ defmodule Phod.Session do
         _from,
         %__MODULE__{status: :running} = state
       ) do
-    state = %{state | queue: state.queue ++ [{text, sender}]}
+    state = %{state | queue: state.queue ++ [user_item(text, sender)]}
     broadcast(state)
     {:reply, {:ok, :queued}, state, state.idle_timeout}
   end
 
   def handle_call({:send_message, text, sender}, _from, %__MODULE__{status: :idle} = state) do
-    {:reply, :ok, start_run(state, text, sender), state.idle_timeout}
+    {:reply, :ok, start_run(state, user_item(text, sender)), state.idle_timeout}
+  end
+
+  # A message from a peer session starts a `:peer` run, or queues behind one.
+  # The receiver checks the link too: a one-way connection only runs in one
+  # direction, whatever the sender does.
+  def handle_call({:peer_send, from, prompt, want_reply}, _from, state) do
+    if Connections.link?(from, state.id) do
+      item = %{
+        text: peer_message_text(from, prompt, want_reply),
+        sender: "peer #{from}",
+        mode: :peer,
+        from: from
+      }
+
+      accept(state, item)
+    else
+      {:reply, {:error, :not_connected}, state, state.idle_timeout}
+    end
+  end
+
+  # A reply from a peer goes to the run that is waiting for it. Otherwise it
+  # starts a run of its own, in `:user` mode: it's the sender's exchange, not a
+  # request from a peer.
+  def handle_call({:peer_reply, from, text}, _from, state) do
+    if state.task_pid && MapSet.member?(state.awaiting, from) do
+      send(state.task_pid, {:peer_reply, from, text})
+      state = %{state | awaiting: MapSet.delete(state.awaiting, from)}
+      {:reply, {:ok, :started}, state, state.idle_timeout}
+    else
+      accept(state, %{
+        text: "Reply from #{from}:\n\n#{text}",
+        sender: "reply from #{from}",
+        mode: :user,
+        from: nil
+      })
+    end
+  end
+
+  # Called by a running task just before it sends a prompt that wants a reply,
+  # so the reply is recognised even if it arrives first.
+  def handle_call({:expect_reply, peer}, _from, state) do
+    {:reply, :ok, %{state | awaiting: MapSet.put(state.awaiting, peer)}, state.idle_timeout}
+  end
+
+  def handle_call({:unexpect_reply, peer}, _from, state) do
+    {:reply, :ok, %{state | awaiting: MapSet.delete(state.awaiting, peer)}, state.idle_timeout}
+  end
+
+  def handle_call(:worktrees, _from, state) do
+    {:reply, {:ok, [{state.id, state.worktree_root}]}, state, state.idle_timeout}
   end
 
   def handle_call(:get_snapshot, _from, state) do
@@ -220,9 +362,30 @@ defmodule Phod.Session do
   end
 
   @impl true
+  def handle_cast(:broadcast, state) do
+    broadcast(state)
+    {:noreply, state, state.idle_timeout}
+  end
+
+  @impl true
   def handle_info({:loop_event, {:message_appended, msg}}, state) do
     log(state, Log.message_entries(msg, "user"))
     state = %{state | messages: state.messages ++ [msg]}
+    broadcast(state)
+    {:noreply, state, state.idle_timeout}
+  end
+
+  # A message the loop added on its own: a peer's reply, or a notice.
+  def handle_info({:loop_event, {:peer_input, label, msg}}, state) do
+    index = length(state.messages)
+    log(state, Log.message_entries(msg, label))
+
+    state = %{
+      state
+      | messages: state.messages ++ [msg],
+        senders: Map.put(state.senders, index, label)
+    }
+
     broadcast(state)
     {:noreply, state, state.idle_timeout}
   end
@@ -239,11 +402,11 @@ defmodule Phod.Session do
     state =
       case result do
         {:ok, _messages} ->
-          %{state | status: :idle, task_ref: nil}
+          finish_run(state)
 
         {:error, {reason, _messages}} ->
           log(state, Log.error_entry(reason))
-          %{state | status: :idle, task_ref: nil, last_error: reason}
+          %{finish_run(state) | last_error: reason}
       end
 
     state = start_next(state)
@@ -256,12 +419,7 @@ defmodule Phod.Session do
     message = "agent run crashed: #{inspect(reason)}"
     log(state, Log.error_entry(message))
 
-    state = %{
-      state
-      | status: :idle,
-        task_ref: nil,
-        last_error: "agent run crashed: #{inspect(reason)}",
-    }
+    state = %{finish_run(state) | last_error: "agent run crashed: #{inspect(reason)}"}
 
     broadcast(state)
     {:noreply, state, state.idle_timeout}
@@ -271,43 +429,110 @@ defmodule Phod.Session do
     {:stop, :normal, state}
   end
 
-  # Starts a run for `text` from `sender`: records the user's message, then
-  # runs the agent loop in a supervised Task.
-  defp start_run(state, text, sender) do
-    user_msg = %{"role" => "user", "content" => [%{"type" => "text", "text" => text}]}
+  defp user_item(text, sender), do: %{text: text, sender: sender, mode: :user, from: nil}
+
+  defp peer_message_text(from, prompt, true) do
+    "Message from peer #{from}. A reply is requested: when you are done, send your " <>
+      "final response with the reply tool.\n\n" <> prompt
+  end
+
+  defp peer_message_text(from, prompt, false), do: "Message from peer #{from}.\n\n" <> prompt
+
+  # Starts a run if the session is idle, otherwise queues the item.
+  defp accept(%__MODULE__{status: :running} = state, item) do
+    state = %{state | queue: state.queue ++ [item]}
+    broadcast(state)
+    {:reply, {:ok, :queued}, state, state.idle_timeout}
+  end
+
+  defp accept(state, item) do
+    {:reply, {:ok, :started}, start_run(state, item), state.idle_timeout}
+  end
+
+  defp finish_run(state) do
+    %{state | status: :idle, task_ref: nil, task_pid: nil, awaiting: MapSet.new()}
+  end
+
+  # Starts a run for a queue item: records the message, then runs the agent
+  # loop in a supervised Task.
+  defp start_run(state, item) do
+    user_msg = %{"role" => "user", "content" => [%{"type" => "text", "text" => item.text}]}
     new_messages = state.messages ++ [user_msg]
 
     state = %{
       state
       | messages: new_messages,
-        senders: Map.put(state.senders, length(state.messages), sender),
+        senders: Map.put(state.senders, length(state.messages), item.sender),
         status: :running,
-        last_error: nil,
+        last_error: nil
     }
 
-    log(state, Log.user_entry(sender, text))
+    log(state, Log.user_entry(item.sender, item.text))
     broadcast(state)
 
     parent = self()
     worktree_root = state.worktree_root
 
+    opts = [
+      mode: item.mode,
+      peers: Connections.peers(state.id),
+      peer: peer_call(self(), state.id, item.from)
+    ]
+
     task =
       Task.Supervisor.async_nolink(Phod.Session.TaskSupervisor, fn ->
-        Loop.run(new_messages, worktree_root, fn event ->
-          send(parent, {:loop_event, event})
-        end)
+        Loop.run(
+          new_messages,
+          worktree_root,
+          fn event -> send(parent, {:loop_event, event}) end,
+          opts
+        )
       end)
 
     allow_req_test(task.pid)
 
-    %{state | task_ref: task.ref}
+    %{state | task_ref: task.ref, task_pid: task.pid}
   end
 
-  # When a run finishes, the next queued message (if any) starts its run.
+  # The peer work a run may ask for, as a function the loop calls from its task.
+  # `session` is this session's process; `from` is who sent the message this run
+  # is handling, if it was a peer.
+  defp peer_call(session, id, from) do
+    fn
+      {:send, peer, prompt, want_reply} ->
+        if want_reply, do: GenServer.call(session, {:expect_reply, peer})
+
+        case deliver(peer, id, prompt, want_reply) do
+          {:ok, status} ->
+            {:ok, %{peer: peer, status: status}}
+
+          {:error, _reason} = error ->
+            if want_reply, do: GenServer.call(session, {:unexpect_reply, peer})
+            error
+        end
+
+      {:reply, text} when is_binary(from) ->
+        case deliver_reply(from, id, text) do
+          {:ok, status} -> {:ok, %{to: from, status: status}}
+          {:error, _reason} = error -> error
+        end
+
+      {:reply, _text} ->
+        {:error, "there is no sender to reply to"}
+
+      {:root, peer} ->
+        case worktrees(peer) do
+          {:ok, [{_name, root}]} -> {:ok, root}
+          {:error, _reason} = error -> error
+        end
+    end
+  end
+
+  # When a run finishes, the next queued item (if any) starts its run.
   defp start_next(%{queue: []} = state), do: state
 
-  defp start_next(%{queue: [{text, sender} | rest]} = state) do
-    start_run(%{state | queue: rest}, text, sender)
+  defp start_next(%{queue: [item | rest]} = state) do
+    start_run(%{state | queue: rest}, item)
   end
 
   defp snapshot(state) do
@@ -319,7 +544,8 @@ defmodule Phod.Session do
       senders: state.senders,
       edits: state.edits,
       last_error: state.last_error,
-      queued: Enum.map(state.queue, fn {text, _sender} -> text end),
+      queued: Enum.map(state.queue, & &1.text),
+      peers: Connections.peers(state.id),
     }
   end
 

@@ -12,6 +12,7 @@ defmodule PhodWeb.SessionLive.Components do
   attr :id, :string, required: true
   attr :status, :atom, required: true
   attr :presence, :list, required: true
+  attr :peers, :list, default: []
 
   def session_header(assigns) do
     ~H"""
@@ -24,6 +25,9 @@ defmodule PhodWeb.SessionLive.Components do
           @status == :idle && "bg-green-100 text-green-800"
         ]}>
           {@status}
+        </span>
+        <span :if={@peers != []} class="text-xs opacity-70" data-role="peers">
+          peers: {Enum.join(@peers, ", ")}
         </span>
       </div>
 
@@ -346,6 +350,14 @@ defmodule PhodWeb.SessionLive.Components do
   # A grep call's summary shows its first two patterns, then "..." if there
   # are more; the expanded view lists all of them. Both read the patterns the
   # tool validated, not the raw input.
+  defp tool_summary(%{name: "send", input: %{"peer" => peer}}), do: "to #{peer}"
+  defp tool_summary(%{name: "reply"}), do: "reply to sender"
+
+  # A read-only tool run in a peer's worktree names the peer first.
+  defp tool_summary(%{input: %{"peer" => peer}} = item) do
+    "#{peer} · " <> tool_summary(%{item | input: Map.delete(item.input, "peer")})
+  end
+
   defp tool_summary(%{name: "grep"} = item) do
     case grep_patterns(item) do
       [_, _, _ | _] = patterns ->

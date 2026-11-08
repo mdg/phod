@@ -109,7 +109,12 @@ defmodule PhodWeb.SessionLive.Show do
     <Layouts.app flash={@flash}>
       <%!-- -mt-6 cancels the layout's main padding, so the session title sits closer to the navbar --%>
       <div class="flex flex-col h-[calc(100vh-4rem)] -mt-6">
-        <Components.session_header id={@id} status={@snapshot.status} presence={@presence} />
+        <Components.session_header
+          id={@id}
+          status={@snapshot.status}
+          presence={@presence}
+          peers={@snapshot.peers}
+        />
 
         <div class="flex-1 grid grid-cols-[2fr_1fr_1fr] auto-rows-fr gap-2 p-2 min-h-0">
           <Components.chat_pane

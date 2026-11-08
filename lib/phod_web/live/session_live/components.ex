@@ -105,6 +105,7 @@ defmodule PhodWeb.SessionLive.Components do
       <div
         class="flex-1 min-h-0 overflow-auto space-y-2 p-2"
         id="transcript"
+        phx-hook=".Transcript"
         data-role="transcript"
       >
         <div :for={{item, idx} <- Enum.with_index(@transcript)} id={"transcript-item-#{idx}"}>
@@ -143,6 +144,28 @@ defmodule PhodWeb.SessionLive.Components do
           Send
         </.button>
       </.form>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".Transcript">
+        // Keeps the newest message in view, but only if the reader was already
+        // near the bottom; scrolled-up history is left where it is.
+        export default {
+          mounted() {
+            this.scrollToBottom()
+          },
+          beforeUpdate() {
+            this.wasNearBottom = this.isNearBottom()
+          },
+          updated() {
+            if (this.wasNearBottom) this.scrollToBottom()
+          },
+          isNearBottom() {
+            const el = this.el
+            return el.scrollHeight - el.scrollTop - el.clientHeight <= 48
+          },
+          scrollToBottom() {
+            this.el.scrollTop = this.el.scrollHeight
+          }
+        }
+      </script>
       <script :type={Phoenix.LiveView.ColocatedHook} name=".MessageForm">
         export default {
           mounted() {

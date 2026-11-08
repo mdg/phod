@@ -187,7 +187,7 @@ defmodule Phod.Session.LoopTest do
 
     assert summary == %{
              "role" => "assistant",
-             "content" => [%{"type" => "text", "text" => "here is my summary"}]
+             "content" => [%{"type" => "text", "text" => "here is my summary"}],
            }
 
     assert %{"role" => "user", "content" => blocks} = wrap_up

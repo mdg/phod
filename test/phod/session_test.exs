@@ -39,7 +39,7 @@ defmodule Phod.SessionTest do
   test "a send_message/2 while running is queued and runs after the current run", %{
     id: id,
     user: user,
-    tree: tree
+    tree: tree,
   } do
     test_pid = self()
 

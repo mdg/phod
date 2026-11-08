@@ -11,7 +11,7 @@ defmodule Phod.Tool.WriteFileTest do
     assert {:ok, %{path: "lib/new/thing.ex", created?: true, bytes: 6}} =
              Tool.run("write_file", root, %{
                "path" => "lib/new/thing.ex",
-               "content" => "hello\n"
+               "content" => "hello\n",
              })
 
     assert File.read!(Path.join(root, "lib/new/thing.ex")) == "hello\n"

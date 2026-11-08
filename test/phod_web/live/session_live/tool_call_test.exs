@@ -54,7 +54,7 @@ defmodule PhodWeb.SessionLive.ToolCallTest do
       | input: %{"patterns" => "[\"/]nfl/players"},
         result:
           {:ok,
-           %{"matches" => [], "truncated?" => false, "patterns" => ["[\"/]nfl/players"]}}
+           %{"matches" => [], "truncated?" => false, "patterns" => ["[\"/]nfl/players"]}},
     }
 
     html = render_component(&Components.tool_call_block/1, item: item)

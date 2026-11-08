@@ -27,7 +27,7 @@ defmodule Phod.ToolTest do
              "read_files",
              "rm",
              "rustc",
-             "write_file"
+             "write_file",
            ]
 
     for tool <- tools do

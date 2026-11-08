@@ -183,7 +183,8 @@ defmodule Phod.SessionTest do
       File.mkdir_p!(root)
 
       assert {:ok, pid} = Phod.Session.ensure_started("octocat", tree)
-      assert %{id: "octocat/" <> ^tree, worktree_root: ^root} = :sys.get_state(pid)
+      assert %{id: "octocat/" <> ^tree, worktrees: [{"octocat/" <> ^tree, ^root}]} =
+               :sys.get_state(pid)
     end
 
     test "rejects a worktree directory that does not exist" do
@@ -221,4 +222,38 @@ defmodule Phod.SessionTest do
     assert Phod.Session.get_snapshot("does-not-exist") == {:error, :not_found}
     assert Phod.Session.send_message("does-not-exist", "hi") == {:error, :not_found}
   end
+
+  describe "add_worktree/3" do
+    test "adds a valid worktree to a running session", %{user: user, tree: tree, id: id} do
+      other = "wt-other-#{System.unique_integer([:positive])}"
+      other_root = Phod.Session.worktree_root(user, other)
+      File.mkdir_p!(other_root)
+      on_exit(fn -> File.rm_rf!(other_root) end)
+      {:ok, _pid} = Phod.Session.ensure_started(user, tree)
+
+      assert :ok = Phod.Session.add_worktree(id, user, other)
+
+      assert %{worktrees: [^id, other_id]} = Phod.Session.get_snapshot(id)
+      assert other_id == Phod.Session.session_id(user, other)
+    end
+
+    test "rejects a worktree that is already part of the session", %{user: user, tree: tree, id: id} do
+      {:ok, _pid} = Phod.Session.ensure_started(user, tree)
+
+      assert {:error, :already_added} = Phod.Session.add_worktree(id, user, tree)
+    end
+
+    test "rejects a worktree that is not a valid directory", %{user: user, tree: tree, id: id} do
+      {:ok, _pid} = Phod.Session.ensure_started(user, tree)
+      missing = "no-such-#{System.unique_integer([:positive])}"
+
+      assert {:error, {:invalid_worktree_root, _}} = Phod.Session.add_worktree(id, user, missing)
+      assert %{worktrees: [^id]} = Phod.Session.get_snapshot(id)
+    end
+
+    test "an unknown session is :not_found" do
+      assert {:error, :not_found} = Phod.Session.add_worktree("nobody/none", "nobody", "none")
+    end
+  end
+
 end

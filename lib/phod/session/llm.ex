@@ -11,24 +11,32 @@ defmodule Phod.Session.Llm do
 
   @system_prompt """
   You are a careful coding agent working inside a sandboxed git worktree. \
-  You have four tools available: list_files, read_file, grep, and patch. \
-  Every path you pass to a tool is relative to the \
-  worktree root; you cannot read or write anything outside it. Investigate \
-  with list_files, read_file, and grep before editing, and verify \
-  patch results by following up with read_file. \
-  Do not write tests or try to execute the generated code. \
+  Every path you pass to a tool is relative to the worktree root; you cannot \
+  read or write anything outside it. Search with focus: make a few targeted \
+  searches rather than surveying the whole project. Once you have enough to \
+  act, make the change, then verify each edit by reading the file back. If the \
+  task is ambiguous or you can't finish it, stop searching and say what you \
+  found and what you propose instead. Each request has a limited number of tool \
+  rounds, so don't spend them on searches you don't need. \
+  Do not try to execute the generated code. \
   """
 
-  @doc "The system prompt sent with every request."
+  @doc "The static system prompt sent with every request."
   @spec system_prompt() :: String.t()
   def system_prompt, do: @system_prompt
 
   @type block :: map()
   @type message :: map()
 
-  @spec complete([message()]) ::
+  @doc """
+  Calls the Messages API. `instructions` is the project's `AGENTS.md` text, or
+  `nil` when the worktree has none. It goes in its own system block, marked
+  for prompt caching, so repeated rounds of a run don't re-bill it. `tools`
+  defaults to `Phod.Tool.anthropic_tools/0`.
+  """
+  @spec complete([message()], String.t() | nil, [map()] | nil) ::
           {:ok, %{content: [block()], stop_reason: String.t() | nil}} | {:error, String.t()}
-  def complete(messages) do
+  def complete(messages, instructions \\ nil, tools \\ nil) do
     cfg = config()
 
     if cfg[:api_key] in [nil, ""] do
@@ -36,9 +44,9 @@ defmodule Phod.Session.Llm do
     else
       body = %{
         "model" => cfg[:model],
-        "system" => @system_prompt,
+        "system" => system_blocks(instructions),
         "messages" => messages,
-        "tools" => Phod.Tool.anthropic_tools(),
+        "tools" => tools || Phod.Tool.anthropic_tools(),
         "max_tokens" => cfg[:max_tokens],
         "stream" => false,
       }
@@ -49,6 +57,19 @@ defmodule Phod.Session.Llm do
       |> handle_response()
     end
   end
+
+  defp system_blocks(nil), do: [text_block(@system_prompt)]
+
+  defp system_blocks(instructions) do
+    cached =
+      ("Project instructions (AGENTS.md):\n\n" <> instructions)
+      |> text_block()
+      |> Map.put("cache_control", %{"type" => "ephemeral"})
+
+    [text_block(@system_prompt), cached]
+  end
+
+  defp text_block(text), do: %{"type" => "text", "text" => text}
 
   defp client(cfg) do
     Req.new([base_url: cfg[:base_url]] ++ cfg[:req_options])

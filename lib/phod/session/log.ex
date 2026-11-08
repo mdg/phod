@@ -48,9 +48,18 @@ defmodule Phod.Session.Log do
       %{"type" => "text", "text" => text} ->
         [entry("phod", now, [fence(text, "text")])]
 
-      %{"type" => "tool_use", "name" => name, "input" => input} ->
+      %{"type" => "tool_use", "name" => name, "input" => input} = block ->
+        id = Map.get(block, "id", "")
+
         [
-          entry("phod", now, ["**tool call:** `", name, "`\n\n", fence(json(input), "json")])
+          entry("phod", now, [
+            "**tool call:** `",
+            name,
+            "` · id `",
+            id,
+            "`\n\n",
+            fence(json(input), "json")
+          ])
         ]
 
       _other ->
@@ -62,11 +71,26 @@ defmodule Phod.Session.Log do
     Enum.map(blocks, fn
       %{"type" => "tool_result"} = block ->
         label = if block["is_error"], do: "tool error", else: "tool result"
-        entry("phod", now, ["**", label, ":**\n\n", fence(block["content"] || "", "text")])
+        id = Map.get(block, "tool_use_id", "")
+
+        entry("phod", now, [
+          "**",
+          label,
+          ":** · id `",
+          id,
+          "`\n\n",
+          fence(block["content"] || "", "text")
+        ])
 
       %{"type" => "text", "text" => text} ->
         entry(user_name, now, [fence(text, "text")])
     end)
+  end
+
+  @doc "An entry recording why an agent run failed, so a stopped run is visible in the log."
+  @spec error_entry(String.t(), DateTime.t()) :: iodata()
+  def error_entry(reason, now \\ DateTime.utc_now()) do
+    entry("phod", now, ["**run error:**\n\n", fence(reason, "text")])
   end
 
   @doc "A sender entry for a user's message as it was sent."

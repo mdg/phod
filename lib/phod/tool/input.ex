@@ -72,6 +72,57 @@ defmodule Phod.Tool.Input do
   end
 
   @doc """
+  A path parameter that does not follow a symlink in its final component
+
+  opts:
+  required bool
+  """
+  def link_path(name, desc, opts \\ []) do
+    %Param{
+      type: __MODULE__.LinkPath,
+      name: name,
+      desc: desc,
+      required?: Keyword.get(opts, :required, false),
+      default: Keyword.get(opts, :default),
+      opts: Keyword.drop(opts, [:required, :default]),
+    }
+  end
+
+  @doc """
+  A list-of-paths parameter that does not follow symlinks in their final components
+
+  opts:
+  required bool
+  """
+  def link_paths(name, desc, opts \\ []) do
+    %Param{
+      type: __MODULE__.LinkPaths,
+      name: name,
+      desc: desc,
+      required?: Keyword.get(opts, :required, false),
+      default: Keyword.get(opts, :default),
+      opts: Keyword.drop(opts, [:required, :default]),
+    }
+  end
+
+  @doc """
+  A list-of-paths parameter
+
+  opts:
+  required bool
+  """
+  def paths(name, desc, opts \\ []) do
+    %Param{
+      type: __MODULE__.Paths,
+      name: name,
+      desc: desc,
+      required?: Keyword.get(opts, :required, false),
+      default: Keyword.get(opts, :default, []),
+      opts: Keyword.drop(opts, [:required, :default]),
+    }
+  end
+
+  @doc """
   A boolean parameter
 
   opts:

@@ -54,7 +54,7 @@ defmodule Phod.Tool.ElixirScript do
     there is no network access to fetch dependencies, so `Mix.install/2` \
     will not work. The script runs with a hard #{@timeout_ms}ms timeout \
     and output beyond #{@max_output_bytes} bytes per stream is truncated. \
-    Use this for anything list_files/read_file/grep/patch can't \
+    Use this for anything that the other tools cannot \
     express: computations, inspecting structured data, quick experiments, \
     or multi-file changes in one shot. Stdout and stderr are returned \
     along with the exit status whether the script exits cleanly or \
@@ -74,9 +74,11 @@ defmodule Phod.Tool.ElixirScript do
   end
 
   @impl Tool.B
-  def run(%{script: script}, %{session_root: root}) do
+  def run(%{script: script}, %{session_root: root} = session_opts) do
+    roots = Map.get(session_opts, :session_roots, [root])
+
     with {:ok, toolchain} <- resolve_toolchain() do
-      args = bwrap_args(toolchain, root, script)
+      args = bwrap_args(toolchain, root, roots, script)
 
       case run_sandboxed(args) do
         {:ok, %Rambo{out: out, err: err, status: status}} ->
@@ -166,12 +168,12 @@ defmodule Phod.Tool.ElixirScript do
   @ro_bind_roots ["/usr", "/lib", "/bin"]
   @optional_ro_bind_roots ["/lib64"]
 
-  defp bwrap_args(toolchain, root, script) do
+  # Every session worktree is bound read-write at its own path; the script's
+  # working directory is the selected one, `root`.
+  defp bwrap_args(toolchain, root, roots, script) do
     ro_binds(toolchain) ++
+      Enum.flat_map(roots, &["--bind", &1, &1]) ++
       [
-        "--bind",
-        root,
-        root,
         "--proc",
         "/proc",
         "--dev",

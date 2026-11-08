@@ -115,8 +115,8 @@ defmodule PhodWeb.SessionLive.ShowTest do
           %{
             "type" => "tool_use",
             "id" => "tu_1",
-            "name" => "read_file",
-            "input" => %{"path" => "new.txt"},
+            "name" => "read_files",
+            "input" => %{"paths" => ["new.txt"]}
           },
         ],
         "stop_reason" => "tool_use",

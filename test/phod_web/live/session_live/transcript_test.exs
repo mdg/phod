@@ -57,7 +57,7 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
         %{
           "role" => "assistant",
           "content" => [
-            %{"type" => "tool_use", "id" => "tu_1", "name" => "read_file", "input" => %{}},
+            %{"type" => "tool_use", "id" => "tu_1", "name" => "read_files", "input" => %{}}
           ],
         },
         %{

@@ -64,7 +64,9 @@ defmodule Phod.ToolTest do
       end
     end
 
-    test "several worktrees add an enum of their names to every tool", %{worktrees: worktrees} do
+    test "several worktrees add an enum of their names to every tool", %{
+      worktrees: worktrees
+    } do
       names = Enum.map(worktrees, &elem(&1, 0))
 
       for %{"input_schema" => schema} <- Tool.anthropic_tools(names) do
@@ -80,22 +82,35 @@ defmodule Phod.ToolTest do
 
     test "acts on the named worktree", %{worktrees: worktrees} do
       assert {:ok, %{files: [%{content: "1: from second"}]}} =
-               Tool.run("read_files", worktrees, %{"paths" => ["second.txt"], "worktree" => "u/second"})
+               Tool.run("read_files", worktrees, %{
+                 "paths" => ["second.txt"],
+                 "worktree" => "u/second"
+               })
     end
 
-    test "a file that is only in another worktree is not found by default", %{worktrees: worktrees} do
+    test "a file that is only in another worktree is not found by default", %{
+      worktrees: worktrees
+    } do
       assert {:error, "paths: invalid path"} =
                Tool.run("read_files", worktrees, %{"paths" => ["second.txt"]})
     end
 
     test "an unknown worktree name is an error", %{worktrees: worktrees} do
       assert {:error, msg} =
-               Tool.run("read_files", worktrees, %{"paths" => ["first.txt"], "worktree" => "u/nope"})
+               Tool.run("read_files", worktrees, %{
+                 "paths" => ["first.txt"],
+                 "worktree" => "u/nope"
+               })
+
       assert msg =~ ~S(unknown worktree "u/nope")
     end
 
     test "with one worktree, a worktree name is ignored", %{worktrees: [first | _]} do
-      assert {:ok, _} = Tool.run("read_files", [first], %{"paths" => ["first.txt"], "worktree" => "x"})
+      assert {:ok, _} =
+               Tool.run("read_files", [first], %{
+                 "paths" => ["first.txt"],
+                 "worktree" => "x"
+               })
     end
   end
 end

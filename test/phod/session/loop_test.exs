@@ -176,13 +176,13 @@ defmodule Phod.Session.LoopTest do
 
       Req.Test.json(conn, %{
         "content" => [%{"type" => "text", "text" => "ok"}],
-        "stop_reason" => "end_turn"
+        "stop_reason" => "end_turn",
       })
     end)
   end
 
   test "each run reads AGENTS.md from the worktree, so edits apply to the next run", %{
-    root: root
+    root: root,
   } do
     capture_system_blocks()
     write(root, "AGENTS.md", "rule one")
@@ -216,15 +216,21 @@ defmodule Phod.Session.LoopTest do
       send(test_pid, {:system_blocks, Jason.decode!(raw)["system"]})
 
       Req.Test.json(conn, %{
-        "content" => [%{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}}],
-        "stop_reason" => "tool_use"
+        "content" => [
+          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}}
+        ],
+        "stop_reason" => "tool_use",
       })
     end)
 
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
       {:ok, raw, conn} = Plug.Conn.read_body(conn)
       send(test_pid, {:system_blocks, Jason.decode!(raw)["system"]})
-      Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "done"}], "stop_reason" => "end_turn"})
+
+      Req.Test.json(conn, %{
+        "content" => [%{"type" => "text", "text" => "done"}],
+        "stop_reason" => "end_turn"
+      })
     end)
 
     assert {:ok, _} = Loop.run([user_message("list")], root, fn _ -> :ok end)
@@ -234,8 +240,12 @@ defmodule Phod.Session.LoopTest do
     assert round2 =~ "rule for all rounds"
   end
 
-  test "a tool call acts on the worktree it names, and edits report which one", %{root: root} do
-    second = Path.join(Path.dirname(root), "loop-second-#{System.unique_integer([:positive])}")
+  test "a tool call acts on the worktree it names, and edits report which one", %{
+    root: root
+  } do
+    second =
+      Path.join(Path.dirname(root), "loop-second-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(second)
     on_exit(fn -> File.rm_rf!(second) end)
     write(second, "b.txt", "in second\n")
@@ -249,12 +259,20 @@ defmodule Phod.Session.LoopTest do
 
       Req.Test.json(conn, %{
         "content" => [
-          %{"type" => "tool_use", "id" => "tu_read", "name" => "read_files",
-            "input" => %{"paths" => ["b.txt"], "worktree" => "u/second"}},
-          %{"type" => "tool_use", "id" => "tu_patch", "name" => "patch",
-            "input" => %{"path" => "new.txt", "diff" => diff, "worktree" => "u/second"}}
+          %{
+            "type" => "tool_use",
+            "id" => "tu_read",
+            "name" => "read_files",
+            "input" => %{"paths" => ["b.txt"], "worktree" => "u/second"}
+          },
+          %{
+            "type" => "tool_use",
+            "id" => "tu_patch",
+            "name" => "patch",
+            "input" => %{"path" => "new.txt", "diff" => diff, "worktree" => "u/second"}
+          },
         ],
-        "stop_reason" => "tool_use"
+        "stop_reason" => "tool_use",
       })
     end)
 
@@ -266,10 +284,14 @@ defmodule Phod.Session.LoopTest do
     assert File.read!(Path.join(second, "new.txt")) == "hello\n"
     refute File.exists?(Path.join(root, "new.txt"))
 
-    tool_results = for %{"content" => blocks} <- messages, %{"type" => "tool_result"} = b <- blocks, do: b
+    tool_results =
+      for %{"content" => blocks} <- messages,
+          %{"type" => "tool_result"} = b <- blocks,
+          do: b
+
     assert Enum.any?(tool_results, &(&1["content"] =~ "in second"))
 
     assert [%{worktree: "u/second", path: "new.txt"}] =
-             for {:edit_recorded, edit} <- events.(), do: edit
+             for({:edit_recorded, edit} <- events.(), do: edit)
   end
 end

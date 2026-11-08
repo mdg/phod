@@ -62,9 +62,14 @@ defmodule Phod.Tool.Input.LinkPath do
         link = if safe_dir == ".", do: base, else: Path.join(safe_dir, base)
 
         cond do
-          PathInput.git_path?(link) -> {:error, "refusing to access .git"}
-          allow_new? or match?({:ok, _stat}, File.lstat(Path.join(root, link))) -> {:ok, link}
-          true -> {:error, "invalid path"}
+          PathInput.git_path?(link) ->
+            {:error, "refusing to access .git"}
+
+          allow_new? or match?({:ok, _stat}, File.lstat(Path.join(root, link))) ->
+            {:ok, link}
+
+          true ->
+            {:error, "invalid path"}
         end
       end)
     end

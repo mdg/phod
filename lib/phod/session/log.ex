@@ -58,8 +58,8 @@ defmodule Phod.Session.Log do
             "` · id `",
             id,
             "`\n\n",
-            fence(json(input), "json")
-          ])
+            fence(json(input), "json"),
+          ]),
         ]
 
       _other ->
@@ -79,7 +79,7 @@ defmodule Phod.Session.Log do
           ":** · id `",
           id,
           "`\n\n",
-          fence(block["content"] || "", "text")
+          fence(block["content"] || "", "text"),
         ])
 
       %{"type" => "text", "text" => text} ->

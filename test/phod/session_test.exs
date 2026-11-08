@@ -21,7 +21,7 @@ defmodule Phod.SessionTest do
   test "send_message/2 runs the loop and settles back to :idle", %{
     id: id,
     user: user,
-    tree: tree
+    tree: tree,
   } do
     Req.Test.expect(Phod.Session.LlmStub, text_response("hello!"))
 
@@ -183,6 +183,7 @@ defmodule Phod.SessionTest do
       File.mkdir_p!(root)
 
       assert {:ok, pid} = Phod.Session.ensure_started("octocat", tree)
+
       assert %{id: "octocat/" <> ^tree, worktrees: [{"octocat/" <> ^tree, ^root}]} =
                :sys.get_state(pid)
     end
@@ -237,23 +238,33 @@ defmodule Phod.SessionTest do
       assert other_id == Phod.Session.session_id(user, other)
     end
 
-    test "rejects a worktree that is already part of the session", %{user: user, tree: tree, id: id} do
+    test "rejects a worktree that is already part of the session", %{
+      user: user,
+      tree: tree,
+      id: id
+    } do
       {:ok, _pid} = Phod.Session.ensure_started(user, tree)
 
       assert {:error, :already_added} = Phod.Session.add_worktree(id, user, tree)
     end
 
-    test "rejects a worktree that is not a valid directory", %{user: user, tree: tree, id: id} do
+    test "rejects a worktree that is not a valid directory", %{
+      user: user,
+      tree: tree,
+      id: id
+    } do
       {:ok, _pid} = Phod.Session.ensure_started(user, tree)
       missing = "no-such-#{System.unique_integer([:positive])}"
 
-      assert {:error, {:invalid_worktree_root, _}} = Phod.Session.add_worktree(id, user, missing)
+      assert {:error, {:invalid_worktree_root, _}} =
+               Phod.Session.add_worktree(id, user, missing)
+
       assert %{worktrees: [^id]} = Phod.Session.get_snapshot(id)
     end
 
     test "an unknown session is :not_found" do
-      assert {:error, :not_found} = Phod.Session.add_worktree("nobody/none", "nobody", "none")
+      assert {:error, :not_found} =
+               Phod.Session.add_worktree("nobody/none", "nobody", "none")
     end
   end
-
 end

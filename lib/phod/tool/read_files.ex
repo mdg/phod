@@ -28,7 +28,9 @@ defmodule Phod.Tool.ReadFiles do
   @impl Tool.B
   def params() do
     [
-      Tool.Input.paths(:paths, "Files to read, relative to the worktree root.", required: true)
+      Tool.Input.paths(:paths, "Files to read, relative to the worktree root.",
+        required: true
+      ),
     ]
   end
 

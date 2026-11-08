@@ -38,7 +38,8 @@ defmodule Phod.Tool.Input.LinkPathsTest do
     assert {:error, "invalid path"} =
              LinkPaths.validate(["a.txt", "../outside"], %{session_root: root})
 
-    assert {:error, "invalid path"} = LinkPaths.validate(["gone.txt"], %{session_root: root})
+    assert {:error, "invalid path"} =
+             LinkPaths.validate(["gone.txt"], %{session_root: root})
   end
 
   test "rejects an empty list and a non-list", %{root: root} do
@@ -54,7 +55,7 @@ defmodule Phod.Tool.Input.LinkPathsTest do
 
     assert Input.to_schema([param])["properties"]["paths"] == %{
              "type" => "array",
-             "items" => %{"type" => "string"}
+             "items" => %{"type" => "string"},
            }
   end
 end

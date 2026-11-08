@@ -22,7 +22,9 @@ defmodule Phod.Tool.RmTest do
   test "a missing file removes nothing", %{root: root} do
     write(root, "a.txt", "a")
 
-    assert {:error, "paths: invalid path"} = Tool.run("rm", root, %{"paths" => ["a.txt", "gone.txt"]})
+    assert {:error, "paths: invalid path"} =
+             Tool.run("rm", root, %{"paths" => ["a.txt", "gone.txt"]})
+
     assert File.exists?(Path.join(root, "a.txt"))
   end
 
@@ -47,12 +49,15 @@ defmodule Phod.Tool.RmTest do
   end
 
   test "cannot reach outside the worktree", %{root: root} do
-    outside = Path.join(Path.dirname(root), "rm-outside-#{System.unique_integer([:positive])}")
+    outside =
+      Path.join(Path.dirname(root), "rm-outside-#{System.unique_integer([:positive])}")
+
     File.write!(outside, "secret")
     on_exit(fn -> File.rm(outside) end)
 
     assert {:error, "paths: invalid path"} =
              Tool.run("rm", root, %{"paths" => ["../" <> Path.basename(outside)]})
+
     assert File.exists?(outside)
   end
 
@@ -60,13 +65,19 @@ defmodule Phod.Tool.RmTest do
     write(root, "target.txt", "keep me")
     symlink!("target.txt", Path.join(root, "link.txt"))
 
-    assert {:ok, %{removed: ["link.txt"]}} = Tool.run("rm", root, %{"paths" => ["link.txt"]})
+    assert {:ok, %{removed: ["link.txt"]}} =
+             Tool.run("rm", root, %{"paths" => ["link.txt"]})
+
     refute File.exists?(Path.join(root, "link.txt"))
     assert File.read!(Path.join(root, "target.txt")) == "keep me"
   end
 
-  test "cannot remove through a parent symlink that points outside the worktree", %{root: root} do
-    outside_dir = Path.join(Path.dirname(root), "rm-outdir-#{System.unique_integer([:positive])}")
+  test "cannot remove through a parent symlink that points outside the worktree", %{
+    root: root
+  } do
+    outside_dir =
+      Path.join(Path.dirname(root), "rm-outdir-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(outside_dir)
     File.write!(Path.join(outside_dir, "keep.txt"), "x")
     on_exit(fn -> File.rm_rf!(outside_dir) end)

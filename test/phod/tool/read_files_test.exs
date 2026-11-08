@@ -17,21 +17,32 @@ defmodule Phod.Tool.ReadFilesTest do
     write(root, "a.txt", "alpha\n")
     write(root, "lib/b.ex", "beta\n")
 
-    assert {:ok, %{files: [%{path: "lib/b.ex", content: "1: beta"}, %{path: "a.txt", content: "1: alpha"}]}} =
+    assert {:ok,
+            %{
+              files: [
+                %{path: "lib/b.ex", content: "1: beta"},
+                %{path: "a.txt", content: "1: alpha"}
+              ]
+            }} =
              Tool.run("read_files", root, %{"paths" => ["lib/b.ex", "a.txt"]})
   end
 
-  test "a file that can't be read is an entry error; the others are still returned", %{root: root} do
+  test "a file that can't be read is an entry error; the others are still returned", %{
+    root: root
+  } do
     write(root, "src/index.ex", "x\n")
     write(root, "ok.txt", "fine\n")
 
-    assert {:ok, %{files: [%{path: "src", error: error}, %{path: "ok.txt", content: "1: fine"}]}} =
+    assert {:ok,
+            %{files: [%{path: "src", error: error}, %{path: "ok.txt", content: "1: fine"}]}} =
              Tool.run("read_files", root, %{"paths" => ["src", "ok.txt"]})
 
     assert error == "\"src\" is a directory, use list_files"
   end
 
-  test "a path that does not resolve fails the whole call before any file is read", %{root: root} do
+  test "a path that does not resolve fails the whole call before any file is read", %{
+    root: root
+  } do
     write(root, "ok.txt", "fine\n")
 
     assert {:error, "paths: invalid path"} =
@@ -47,6 +58,7 @@ defmodule Phod.Tool.ReadFilesTest do
   end
 
   test "requires a list of paths", %{root: root} do
-    assert {:error, "paths: invalid paths"} = Tool.run("read_files", root, %{"paths" => "a.txt"})
+    assert {:error, "paths: invalid paths"} =
+             Tool.run("read_files", root, %{"paths" => "a.txt"})
   end
 end

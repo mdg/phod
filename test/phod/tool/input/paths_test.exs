@@ -36,7 +36,9 @@ defmodule Phod.Tool.Input.PathsTest do
              Paths.validate(["a.txt", "../outside"], %{session_root: root})
 
     assert {:error, "invalid path"} = Paths.validate(["no-such.txt"], %{session_root: root})
-    assert {:error, "invalid empty path"} = Paths.validate(["a.txt", ""], %{session_root: root})
+
+    assert {:error, "invalid empty path"} =
+             Paths.validate(["a.txt", ""], %{session_root: root})
   end
 
   test "rejects an empty list and a non-list", %{root: root} do
@@ -53,9 +55,10 @@ defmodule Phod.Tool.Input.PathsTest do
 
     assert param.type == Paths
     assert param.required?
+
     assert Input.to_schema([param])["properties"]["paths"] == %{
              "type" => "array",
-             "items" => %{"type" => "string"}
+             "items" => %{"type" => "string"},
            }
   end
 

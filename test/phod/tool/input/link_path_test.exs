@@ -21,11 +21,15 @@ defmodule Phod.Tool.Input.LinkPathTest do
     symlink!("target.txt", Path.join(root, "link.txt"))
 
     assert {:ok, "link.txt"} = LinkPath.validate("link.txt", %{session_root: root})
-    assert {:ok, "target.txt"} = Phod.Tool.Input.Path.validate("link.txt", %{session_root: root})
+
+    assert {:ok, "target.txt"} =
+             Phod.Tool.Input.Path.validate("link.txt", %{session_root: root})
   end
 
   test "keeps a final symlink even when its target is outside the worktree", %{root: root} do
-    outside = Path.join(Path.dirname(root), "lp-outside-#{System.unique_integer([:positive])}")
+    outside =
+      Path.join(Path.dirname(root), "lp-outside-#{System.unique_integer([:positive])}")
+
     File.write!(outside, "x")
     on_exit(fn -> File.rm(outside) end)
     symlink!(outside, Path.join(root, "out.txt"))
@@ -43,17 +47,21 @@ defmodule Phod.Tool.Input.LinkPathTest do
     write(root, "work/inside.txt", "ok")
     symlink!("work", Path.join(root, "alias"))
 
-    assert {:ok, "work/inside.txt"} = LinkPath.validate("alias/inside.txt", %{session_root: root})
+    assert {:ok, "work/inside.txt"} =
+             LinkPath.validate("alias/inside.txt", %{session_root: root})
   end
 
   test "refuses a parent symlink that points outside the worktree", %{root: root} do
-    outside = Path.join(Path.dirname(root), "lp-outdir-#{System.unique_integer([:positive])}")
+    outside =
+      Path.join(Path.dirname(root), "lp-outdir-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(outside)
     File.write!(Path.join(outside, "x.txt"), "x")
     on_exit(fn -> File.rm_rf!(outside) end)
     symlink!(outside, Path.join(root, "escape"))
 
-    assert {:error, "invalid path"} = LinkPath.validate("escape/x.txt", %{session_root: root})
+    assert {:error, "invalid path"} =
+             LinkPath.validate("escape/x.txt", %{session_root: root})
   end
 
   test "refuses a path that is missing", %{root: root} do
@@ -87,7 +95,8 @@ defmodule Phod.Tool.Input.LinkPathTest do
   test "refuses .git itself as the final component, and anything under it", %{root: root} do
     write(root, ".git/config", "[core]\n")
 
-    assert {:error, "refusing to access .git"} = LinkPath.validate(".git", %{session_root: root})
+    assert {:error, "refusing to access .git"} =
+             LinkPath.validate(".git", %{session_root: root})
 
     assert {:error, "refusing to access .git"} =
              LinkPath.validate(".git/config", %{session_root: root})

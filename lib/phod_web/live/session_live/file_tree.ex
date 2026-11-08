@@ -21,7 +21,7 @@ defmodule PhodWeb.SessionLive.FileTree do
   @type entries :: {:ok, [entry()]} | {:error, String.t()}
   @type t :: %__MODULE__{
           expanded: MapSet.t(String.t()),
-          entries: %{String.t() => entries()}
+          entries: %{String.t() => entries()},
         }
 
   defstruct expanded: MapSet.new(), entries: %{}

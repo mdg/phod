@@ -16,7 +16,7 @@ defmodule PhodWeb.SessionLive.Transcript do
               id: String.t(),
               name: String.t(),
               input: map(),
-              result: result()
+              result: result(),
             }
 
   @type result :: {:ok, map()} | {:error, String.t()} | :pending

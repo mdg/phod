@@ -220,7 +220,11 @@ defmodule Phod.Session do
     {:reply, {:error, :busy}, state, state.idle_timeout}
   end
 
-  def handle_call({:add_worktree, _user, _tree}, _from, %__MODULE__{status: :running} = state) do
+  def handle_call(
+        {:add_worktree, _user, _tree},
+        _from,
+        %__MODULE__{status: :running} = state
+      ) do
     {:reply, {:error, :busy}, state, state.idle_timeout}
   end
 

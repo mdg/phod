@@ -70,7 +70,7 @@ defmodule Phod.Session.LlmTest do
 
       Req.Test.json(conn, %{
         "content" => [%{"type" => "text", "text" => "ok"}],
-        "stop_reason" => "end_turn"
+        "stop_reason" => "end_turn",
       })
     end)
   end

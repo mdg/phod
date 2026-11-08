@@ -102,8 +102,12 @@ defmodule Phod.Tool.ElixirScriptTest do
     assert {:ok, %{entries: _entries}} = Tool.run("list_files", root, %{})
   end
 
-  test "the sandbox binds every session worktree and runs in the selected one", %{root: root} do
-    second = Path.join(Path.dirname(root), "es-second-#{System.unique_integer([:positive])}")
+  test "the sandbox binds every session worktree and runs in the selected one", %{
+    root: root
+  } do
+    second =
+      Path.join(Path.dirname(root), "es-second-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(second)
     on_exit(fn -> File.rm_rf!(second) end)
     worktrees = [{"u/first", root}, {"u/second", second}]
@@ -111,7 +115,10 @@ defmodule Phod.Tool.ElixirScriptTest do
     script = ~s|File.write!("#{second}/from_script.txt", "hi")\nIO.puts(File.cwd!())|
 
     assert {:ok, %{exit_status: 0, stdout: stdout}} =
-             Tool.run("elixir_script", worktrees, %{"script" => script, "worktree" => "u/second"})
+             Tool.run("elixir_script", worktrees, %{
+               "script" => script,
+               "worktree" => "u/second"
+             })
 
     assert File.read!(Path.join(second, "from_script.txt")) == "hi"
     assert String.trim(stdout) == second

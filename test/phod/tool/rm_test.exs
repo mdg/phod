@@ -42,7 +42,7 @@ defmodule Phod.Tool.RmTest do
     write(root, "a.txt", "a")
 
     assert {:error, msg} = Tool.run("rm", root, %{"paths" => ["a.txt", ".git/config"]})
-    assert msg == "refusing to remove .git/config: nothing under .git can be removed"
+    assert msg == "paths: refusing to access .git"
     assert File.exists?(Path.join(root, "a.txt"))
   end
 

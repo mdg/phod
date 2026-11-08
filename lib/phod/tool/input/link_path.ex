@@ -47,7 +47,7 @@ defmodule Phod.Tool.Input.LinkPath do
   Resolves `path` like `Phod.Tool.Input.Path.resolve/3`, except that the final
   component is kept as written. The result names the link itself when the
   final component is a symlink. A path ending in `.` or `..` is refused, since
-  it doesn't name a single entry.
+  it doesn't name a single entry. Like `Path`, anything inside `.git` is refused.
   """
   @spec resolve(String.t(), term(), boolean()) :: {:ok, String.t()} | {:error, String.t()}
   def resolve(root, path, allow_new?) do
@@ -61,10 +61,10 @@ defmodule Phod.Tool.Input.LinkPath do
       |> ok_and_then(fn safe_dir ->
         link = if safe_dir == ".", do: base, else: Path.join(safe_dir, base)
 
-        if allow_new? or match?({:ok, _stat}, File.lstat(Path.join(root, link))) do
-          {:ok, link}
-        else
-          {:error, "invalid path"}
+        cond do
+          PathInput.git_path?(link) -> {:error, "refusing to access .git"}
+          allow_new? or match?({:ok, _stat}, File.lstat(Path.join(root, link))) -> {:ok, link}
+          true -> {:error, "invalid path"}
         end
       end)
     end

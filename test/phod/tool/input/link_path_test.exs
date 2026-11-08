@@ -83,4 +83,21 @@ defmodule Phod.Tool.Input.LinkPathTest do
     assert param.type == LinkPath
     assert param.required?
   end
+
+  test "refuses .git itself as the final component, and anything under it", %{root: root} do
+    write(root, ".git/config", "[core]\n")
+
+    assert {:error, "refusing to access .git"} = LinkPath.validate(".git", %{session_root: root})
+
+    assert {:error, "refusing to access .git"} =
+             LinkPath.validate(".git/config", %{session_root: root})
+  end
+
+  test "refuses a link whose parent is a symlink into .git", %{root: root} do
+    write(root, ".git/config", "[core]\n")
+    symlink!(".git", Path.join(root, "alias"))
+
+    assert {:error, "refusing to access .git"} =
+             LinkPath.validate("alias/config", %{session_root: root})
+  end
 end

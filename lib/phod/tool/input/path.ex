@@ -54,6 +54,16 @@ defmodule Phod.Tool.Input.Path do
   def check_input(_path, opts) when is_map(opts), do: :ok
   def check_input(_path, _opts), do: {:error, "missing session_root"}
 
+  @git_refusal "refusing to access .git"
+
+  @doc """
+  True when any component of `path` is `.git`. No tool may read or write
+  inside the git directory, so every path type refuses these after
+  resolution.
+  """
+  @spec git_path?(String.t()) :: boolean()
+  def git_path?(path), do: ".git" in Path.split(path)
+
   @doc """
   Resolves `path` (relative to the worktree `root`) into a checked filesystem
   path, guaranteed to stay within `root`.
@@ -89,10 +99,10 @@ defmodule Phod.Tool.Input.Path do
       |> rexult()
       |> map_err(fn _ -> "invalid path" end)
       |> ok_and_then(fn safe_path ->
-        if allow_new? or File.exists?(Path.join(root, safe_path)) do
-          {:ok, if(safe_path == "", do: ".", else: safe_path)}
-        else
-          {:error, "invalid path"}
+        cond do
+          git_path?(safe_path) -> {:error, @git_refusal}
+          allow_new? or File.exists?(Path.join(root, safe_path)) -> {:ok, if(safe_path == "", do: ".", else: safe_path)}
+          true -> {:error, "invalid path"}
         end
       end)
     end

@@ -91,4 +91,34 @@ defmodule Phod.Tool.Input.PathTest do
 
     assert {:ok, "target.txt"} = PathInput.validate("link.txt", %{session_root: root})
   end
+
+  describe ".git is never reachable" do
+    setup %{root: root} do
+      write(root, ".git/config", "[core]\n")
+      write(root, "lib/.git/x", "x")
+      symlink!(".git", Path.join(root, "alias"))
+      %{opts: %{session_root: root}}
+    end
+
+    test "refuses .git and anything under it", %{opts: opts} do
+      for path <- [".git", ".git/config", "./.git/config", "lib/../.git/config"] do
+        assert {:error, "refusing to access .git"} = PathInput.validate(path, opts)
+      end
+    end
+
+    test "refuses a symlink that points into .git", %{opts: opts} do
+      assert {:error, "refusing to access .git"} = PathInput.validate("alias/config", opts)
+    end
+
+    test "refuses a nested .git component too", %{opts: opts} do
+      assert {:error, "refusing to access .git"} = PathInput.validate("lib/.git/x", opts)
+    end
+
+    test "git_path?/1 checks every component", %{} do
+      assert PathInput.git_path?(".git/config")
+      assert PathInput.git_path?("lib/.git")
+      refute PathInput.git_path?(".github/workflows")
+      refute PathInput.git_path?("lib/git.ex")
+    end
+  end
 end

@@ -10,6 +10,7 @@ defmodule Phod.Tool do
   # Keep these in alphabetical order
   @tools %{
     __MODULE__.ElixirScript => false,
+    __MODULE__.Exec => true,
     __MODULE__.Grep => true,
     __MODULE__.ListFiles => true,
     __MODULE__.Patch => true,

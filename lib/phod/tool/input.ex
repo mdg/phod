@@ -106,6 +106,23 @@ defmodule Phod.Tool.Input do
   end
 
   @doc """
+  A parameter that is a non-empty list of non-empty strings
+
+  opts:
+  required bool
+  """
+  def strings(name, desc, opts \\ []) do
+    %Param{
+      type: __MODULE__.Strings,
+      name: name,
+      desc: desc,
+      required?: Keyword.get(opts, :required, false),
+      default: Keyword.get(opts, :default),
+      opts: Keyword.drop(opts, [:required, :default]),
+    }
+  end
+
+  @doc """
   A list-of-paths parameter
 
   opts:

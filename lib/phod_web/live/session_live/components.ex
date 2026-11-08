@@ -204,12 +204,12 @@ defmodule PhodWeb.SessionLive.Components do
       <summary class="cursor-pointer font-mono">{@item.name} · {tool_summary(@item)}</summary>
       <div class="mt-2 space-y-1 pl-2">
         <pre
-          :if={@item.name == "exec"}
+          :if={exec_cmd(@item) != ""}
           class="whitespace-pre-wrap bg-base-200 rounded p-2 font-mono text-xs"
           data-role="tool-call-cmd"
-        >{Enum.join(@item.input["cmd"] || [], " ")}</pre>
+        >{exec_cmd(@item)}</pre>
         <pre
-          :if={@item.name == "patch"}
+          :if={@item.name == "patch" and is_binary(@item.input["diff"])}
           class="whitespace-pre-wrap bg-base-200 rounded p-2 font-mono text-xs"
           data-role="tool-call-diff"
         >{@item.input["diff"]}</pre>
@@ -356,14 +356,22 @@ defmodule PhodWeb.SessionLive.Components do
     end
   end
 
+  defp tool_summary(%{name: "exec"} = item), do: exec_cmd(item)
+
   defp tool_summary(%{input: input}) do
     cond do
       is_binary(input["path"]) -> input["path"]
       is_list(input["patterns"]) -> Enum.join(input["patterns"], ", ")
-      is_list(input["cmd"]) -> Enum.join(input["cmd"], " ")
       true -> ""
     end
   end
+
+  # The command the exec tool ran, from its result. Empty while the call is
+  # pending or when validation failed (shown as the error instead).
+  defp exec_cmd(%{name: "exec", result: {:ok, %{"cmd" => cmd}}}) when is_list(cmd),
+    do: Enum.join(cmd, " ")
+
+  defp exec_cmd(_item), do: ""
 
   # The patterns the grep tool validated, from its result. While the call is
   # pending, or when validation failed (shown as the error instead), there are none.

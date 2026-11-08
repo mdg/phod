@@ -83,4 +83,28 @@ defmodule PhodWeb.SessionLive.ToolCallTest do
 
     refute html =~ "tool-call-patterns"
   end
+
+  describe "exec calls" do
+    defp exec_item(input, result) do
+      %{id: "tu_9", kind: :tool_call, name: "exec", input: input, result: result}
+    end
+
+    test "shows the command from the result, not the raw input" do
+      item =
+        exec_item(%{"cmd" => ["echo", "hi"]}, {:ok, %{"cmd" => ["echo", "hi"], "stdout" => "hi\n", "stderr" => "", "exit_status" => 0}})
+
+      html = render_component(&Components.tool_call_block/1, item: item)
+      doc = LazyHTML.from_fragment(html)
+
+      assert doc |> LazyHTML.query("[data-role=tool-call-cmd]") |> LazyHTML.text() =~ "echo hi"
+    end
+
+    test "a malformed raw cmd (a bare string) renders without crashing, showing the error" do
+      item = exec_item(%{"cmd" => "ls -l"}, {:error, "cmd: invalid strings"})
+      html = render_component(&Components.tool_call_block/1, item: item)
+
+      assert html =~ "cmd: invalid strings"
+      refute html =~ "tool-call-cmd"
+    end
+  end
 end

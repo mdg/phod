@@ -6,6 +6,8 @@ defmodule Phod.Tool.Exec do
   a normal result. Runs through `Phod.Tool.Sandbox`.
   """
 
+  import Rexult
+
   alias Phod.Tool
   alias Phod.Tool.Sandbox
 
@@ -45,6 +47,7 @@ defmodule Phod.Tool.Exec do
   def run(%{cmd: [program | args], allow_writes: allow_writes}, %{session_root: root}) do
     case find_program(program, root) do
       {:ok, exe} ->
+        # The result includes the command that ran, so the UI can show it.
         Sandbox.run([exe | args],
           root: root,
           allow_writes: allow_writes,
@@ -53,6 +56,7 @@ defmodule Phod.Tool.Exec do
           cwd: root,
           timeout_ms: @timeout_ms
         )
+        |> map_ok(&Map.put(&1, :cmd, [program | args]))
 
       :error ->
         {:error, "command not found: #{program}"}

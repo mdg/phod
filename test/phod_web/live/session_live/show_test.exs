@@ -183,13 +183,13 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert has_element?(view, "[data-role=tool-call-diff]", "+hello")
   end
 
-  test "the chat transcript shows the script sent to elixir_script and its result", %{
+  test "the chat transcript shows the command sent to exec and its result", %{
     conn: conn,
     id: id,
     user: owner,
     tree: tree,
   } do
-    script = "IO.puts(\"hi from script\")"
+    cmd = ["echo", "hi from exec"]
 
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
       Req.Test.json(conn, %{
@@ -197,8 +197,8 @@ defmodule PhodWeb.SessionLive.ShowTest do
           %{
             "type" => "tool_use",
             "id" => "tu_1",
-            "name" => "elixir_script",
-            "input" => %{"script" => script},
+            "name" => "exec",
+            "input" => %{"cmd" => cmd},
           },
         ],
         "stop_reason" => "tool_use",
@@ -212,13 +212,13 @@ defmodule PhodWeb.SessionLive.ShowTest do
 
     {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
 
-    view |> form("#message-form", message: %{text: "run a script"}) |> render_submit()
+    view |> form("#message-form", message: %{text: "run a command"}) |> render_submit()
     Req.Test.allow(Phod.Session.LlmStub, self(), pid)
 
     assert_receive {:session_snapshot, %{status: :idle}}, 1000
 
-    assert has_element?(view, "[data-role=tool-call-script]", script)
-    assert has_element?(view, "[data-role=tool-result-stdout]", "hi from script")
+    assert has_element?(view, "[data-role=tool-call-cmd]", "echo hi from exec")
+    assert has_element?(view, "[data-role=tool-result-stdout]", "hi from exec")
   end
 
   @tiny_png Base.decode64!(

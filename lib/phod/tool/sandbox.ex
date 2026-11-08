@@ -1,17 +1,23 @@
 defmodule Phod.Tool.Sandbox do
   @moduledoc """
-  Runs a command in a `bwrap` sandbox: no network, the environment cleared, and
-  the whole filesystem read-only except the bound directories. A write outside
-  them fails. The worktree root is read-only unless
-  `allow_writes: true`. Either way, its `.git` is hidden: a `.git` file (as in a
-  git worktree) is replaced by an empty file, and a `.git` directory by an
-  empty one. Only the system directories and the root are visible; the rest of
-  the host's filesystem doesn't exist in the sandbox. Internal to the tools;
-  the LLM is never told about it.
+  Runs a command in a `bwrap` sandbox. Internal to the tools; the LLM is never
+  told about it.
+
+    * Only the system directories, the worktree root, and the hidden `.git`
+      are visible. The rest of the host's filesystem doesn't exist in the
+      sandbox.
+    * The whole filesystem is read-only except the bound directories, so a
+      write outside them fails rather than appearing to succeed.
+    * The worktree root is read-only unless `allow_writes: true`.
+    * The worktree's `.git` is hidden either way: a `.git` file (as in a git
+      worktree) is replaced by an empty file, and a `.git` directory by an
+      empty one.
+    * No network, and the environment is cleared.
 
   Output is byte-capped per stream. The command runs in a `Task` with a hard
-  timeout, so a timeout can't leave a stray message in the caller's mailbox
-  (see `Phod.Tool.ElixirScript` for why `Rambo`'s own timeout is avoided).
+  timeout, so a timeout can't leave a stray message in the caller's mailbox:
+  `Rambo.run/3`'s own timeout schedules a `:kill` message that isn't cancelled
+  when the command finishes first.
   """
 
   @system_ro ["/usr", "/lib", "/bin", "/lib64"]
@@ -35,7 +41,7 @@ defmodule Phod.Tool.Sandbox do
   def run([_program | _] = argv, opts) do
     timeout = Keyword.fetch!(opts, :timeout_ms)
     args = bwrap_args(argv, opts)
-    task = Task.async(fn -> Rambo.run(bwrap(), args, log: false) end)
+    task = Task.async(fn -> Rambo.run("bwrap", args, log: false) end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, {:ok, %Rambo{} = result}} -> {:ok, output(result)}
@@ -47,42 +53,50 @@ defmodule Phod.Tool.Sandbox do
     end
   end
 
-  defp bwrap, do: "bwrap"
-
+  # The full `bwrap` argument list, built from named steps. The order matters:
+  #
+  #   1. system directories, read-only
+  #   2. `/proc` and `/dev` (bwrap creates their mount points, so they come
+  #      before the root is made read-only)
+  #   3. the worktree root, read-only or writable
+  #   4. the hidden `.git`, mounted over the root
+  #   5. `--remount-ro /`, which makes the sandbox's own root read-only. It comes
+  #      after every mount, and it isn't recursive, so the bound directories
+  #      keep their own modes.
+  #   6. no network, cleared environment, and the working directory
+  #   7. `--`, then the command itself
   defp bwrap_args(argv, opts) do
     root = Keyword.fetch!(opts, :root)
     cwd = Keyword.fetch!(opts, :cwd)
-    root_bind = if Keyword.get(opts, :allow_writes, false), do: "--bind", else: "--ro-bind"
-    ro = Enum.filter(@system_ro, &File.dir?/1) ++ Keyword.get(opts, :ro, [])
-    path = Enum.join(@system_path ++ Keyword.get(opts, :path, []), ":")
+    allow_writes? = Keyword.get(opts, :allow_writes, false)
+    extra_ro = Keyword.get(opts, :ro, [])
+    extra_path = Keyword.get(opts, :path, [])
 
-    # The sandbox's own root is writable by default, and writes to it vanish
-    # when the command exits, which looks like success. `--remount-ro /` makes
-    # it read-only, so those writes fail instead. It comes after every mount
-    # (mount points are created as they're bound), and it's not recursive, so
-    # the bound directories keep their own modes.
-    Enum.flat_map(ro, &["--ro-bind", &1, &1]) ++
-      ["--proc", "/proc", "--dev", "/dev"] ++
-      [root_bind, root, root] ++
-      hide_git(root) ++
-      ["--remount-ro", "/"] ++
-      [
-        "--unshare-net",
-        "--die-with-parent",
-        "--clearenv",
-        "--setenv",
-        "PATH",
-        path,
-        "--chdir",
-        cwd,
-        "--"
-      ] ++ argv
+    Enum.concat([
+      system_mounts(extra_ro),
+      kernel_mounts(),
+      root_mount(root, allow_writes?),
+      hide_git(root),
+      read_only_root(),
+      isolation(extra_path),
+      ["--chdir", cwd, "--"],
+      argv
+    ])
   end
 
-  # Mounted after the root, so it covers the root's own `.git`. A `.git` file
-  # (git worktrees) becomes an empty read-only file; a `.git` directory becomes
-  # an empty tmpfs. The file is bound from an empty regular file, not
-  # /dev/null: bwrap mounts bind sources nodev, so a device node can't be read.
+  defp system_mounts(extra_ro) do
+    dirs = Enum.filter(@system_ro, &File.dir?/1) ++ extra_ro
+    Enum.flat_map(dirs, &["--ro-bind", &1, &1])
+  end
+
+  defp kernel_mounts, do: ["--proc", "/proc", "--dev", "/dev"]
+
+  defp root_mount(root, true), do: ["--bind", root, root]
+  defp root_mount(root, false), do: ["--ro-bind", root, root]
+
+  # A `.git` file (git worktrees) becomes an empty read-only file. It's bound
+  # from an empty regular file, not /dev/null: bwrap mounts bind sources nodev,
+  # so a device node can't be read. A `.git` directory becomes an empty tmpfs.
   defp hide_git(root) do
     git = Path.join(root, ".git")
 
@@ -97,6 +111,21 @@ defmodule Phod.Tool.Sandbox do
     path = Path.join(System.tmp_dir!(), "phod-sandbox-empty")
     unless File.exists?(path), do: File.write!(path, "")
     path
+  end
+
+  defp read_only_root, do: ["--remount-ro", "/"]
+
+  defp isolation(extra_path) do
+    path = Enum.join(@system_path ++ extra_path, ":")
+
+    [
+      "--unshare-net",
+      "--die-with-parent",
+      "--clearenv",
+      "--setenv",
+      "PATH",
+      path
+    ]
   end
 
   defp output(%Rambo{out: out, err: err, status: status}) do

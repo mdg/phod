@@ -181,10 +181,10 @@ defmodule PhodWeb.SessionLive.Components do
       <summary class="cursor-pointer font-mono">{@item.name} · {tool_summary(@item)}</summary>
       <div class="mt-2 space-y-1 pl-2">
         <pre
-          :if={@item.name == "elixir_script"}
-          class="whitespace-pre-wrap bg-base-200 rounded p-2"
-          data-role="tool-call-script"
-        >{@item.input["script"]}</pre>
+          :if={@item.name == "exec"}
+          class="whitespace-pre-wrap bg-base-200 rounded p-2 font-mono text-xs"
+          data-role="tool-call-cmd"
+        >{Enum.join(@item.input["cmd"] || [], " ")}</pre>
         <pre
           :if={@item.name == "patch"}
           class="whitespace-pre-wrap bg-base-200 rounded p-2 font-mono text-xs"
@@ -296,7 +296,7 @@ defmodule PhodWeb.SessionLive.Components do
     """
   end
 
-  def tool_result_body(%{name: "elixir_script"} = assigns) do
+  def tool_result_body(%{name: "exec"} = assigns) do
     ~H"""
     <p class="text-xs opacity-70" data-role="tool-result-exit-status">
       exit status: {@payload["exit_status"]}
@@ -337,7 +337,7 @@ defmodule PhodWeb.SessionLive.Components do
     cond do
       is_binary(input["path"]) -> input["path"]
       is_list(input["patterns"]) -> Enum.join(input["patterns"], ", ")
-      is_binary(input["script"]) -> input["script"] |> String.split("\n") |> List.first()
+      is_list(input["cmd"]) -> Enum.join(input["cmd"], " ")
       true -> ""
     end
   end

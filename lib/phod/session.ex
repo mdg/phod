@@ -41,6 +41,8 @@ defmodule Phod.Session do
     :idle_timeout,
     :log_path,
     messages: [],
+    # messages sent while a run was in progress, as `{text, sender}`, in order
+    queue: [],
     status: :idle,
     edits: [],
     last_error: nil,
@@ -209,8 +211,10 @@ defmodule Phod.Session do
   end
 
   @impl true
-  def handle_call({:send_message, _text, _sender}, _from, %__MODULE__{status: :running} = state) do
-    {:reply, {:error, :busy}, state, state.idle_timeout}
+  def handle_call({:send_message, text, sender}, _from, %__MODULE__{status: :running} = state) do
+    state = %{state | queue: state.queue ++ [{text, sender}]}
+    broadcast(state)
+    {:reply, {:ok, :queued}, state, state.idle_timeout}
   end
 
   def handle_call({:add_worktree, _user, _tree}, _from, %__MODULE__{status: :running} = state) do
@@ -236,23 +240,7 @@ defmodule Phod.Session do
   end
 
   def handle_call({:send_message, text, sender}, _from, %__MODULE__{status: :idle} = state) do
-    user_msg = %{"role" => "user", "content" => [%{"type" => "text", "text" => text}]}
-    new_messages = state.messages ++ [user_msg]
-    state = %{state | messages: new_messages, status: :running, last_error: nil}
-    log(state, Log.user_entry(sender, text))
-    broadcast(state)
-
-    parent = self()
-    worktrees = state.worktrees
-
-    task =
-      Task.Supervisor.async_nolink(Phod.Session.TaskSupervisor, fn ->
-        Loop.run(new_messages, worktrees, fn event -> send(parent, {:loop_event, event}) end)
-      end)
-
-    allow_req_test(task.pid)
-
-    {:reply, :ok, %{state | task_ref: task.ref}, state.idle_timeout}
+    {:reply, :ok, start_run(state, text, sender), state.idle_timeout}
   end
 
   def handle_call(:get_snapshot, _from, state) do
@@ -281,11 +269,12 @@ defmodule Phod.Session do
         {:ok, _messages} ->
           %{state | status: :idle, task_ref: nil}
 
-        {:error, reason, _messages} ->
+        {:error, {reason, _messages}} ->
           log(state, Log.error_entry(reason))
           %{state | status: :idle, task_ref: nil, last_error: reason}
       end
 
+    state = start_next(state)
     broadcast(state)
     {:noreply, state, state.idle_timeout}
   end
@@ -295,7 +284,7 @@ defmodule Phod.Session do
     message = "agent run crashed: #{inspect(reason)}"
     log(state, Log.error_entry(message))
 
-    state = %{state | status: :idle, task_ref: nil, last_error: message}
+    state = start_next(%{state | status: :idle, task_ref: nil, last_error: message})
 
     broadcast(state)
     {:noreply, state, state.idle_timeout}
@@ -303,6 +292,35 @@ defmodule Phod.Session do
 
   def handle_info(:timeout, state) do
     {:stop, :normal, state}
+  end
+
+  # Starts a run for `text` from `sender`: records the user's message, then
+  # runs the agent loop in a supervised Task.
+  defp start_run(state, text, sender) do
+    user_msg = %{"role" => "user", "content" => [%{"type" => "text", "text" => text}]}
+    new_messages = state.messages ++ [user_msg]
+    state = %{state | messages: new_messages, status: :running, last_error: nil}
+    log(state, Log.user_entry(sender, text))
+    broadcast(state)
+
+    parent = self()
+    worktrees = state.worktrees
+
+    task =
+      Task.Supervisor.async_nolink(Phod.Session.TaskSupervisor, fn ->
+        Loop.run(new_messages, worktrees, fn event -> send(parent, {:loop_event, event}) end)
+      end)
+
+    allow_req_test(task.pid)
+
+    %{state | task_ref: task.ref}
+  end
+
+  # When a run finishes, the next queued message (if any) starts its run.
+  defp start_next(%{queue: []} = state), do: state
+
+  defp start_next(%{queue: [{text, sender} | rest]} = state) do
+    start_run(%{state | queue: rest}, text, sender)
   end
 
   defp snapshot(state) do
@@ -316,7 +334,8 @@ defmodule Phod.Session do
       status: state.status,
       messages: state.messages,
       edits: state.edits,
-      last_error: state.last_error
+      last_error: state.last_error,
+      queued: Enum.map(state.queue, fn {text, _sender} -> text end)
     }
   end
 

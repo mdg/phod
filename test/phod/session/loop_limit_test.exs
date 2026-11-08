@@ -34,7 +34,7 @@ defmodule Phod.Session.LoopLimitTest do
     always_uses_a_tool()
     message = %{"role" => "user", "content" => [%{"type" => "text", "text" => "go"}]}
 
-    assert {:error, "tool loop exceeded max rounds (1)", _messages} =
+    assert {:error, {"tool loop exceeded max rounds (1)", _messages}} =
              Loop.run([message], root, fn _ -> :ok end)
   end
 

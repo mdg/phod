@@ -32,7 +32,7 @@ defmodule Phod.SessionTest do
     assert length(messages) == 2
   end
 
-  test "a second send_message/2 while running is rejected with :busy", %{id: id, user: user, tree: tree} do
+  test "a send_message/2 while running is queued and runs after the current run", %{id: id, user: user, tree: tree} do
     test_pid = self()
 
     Req.Test.stub(Phod.Session.LlmStub, fn conn ->
@@ -47,9 +47,22 @@ defmodule Phod.SessionTest do
     Req.Test.allow(Phod.Session.LlmStub, self(), pid)
     assert_receive :llm_called, 1000
 
-    assert {:error, :busy} = Phod.Session.send_message(id, "second")
+    Phoenix.PubSub.subscribe(Phod.PubSub, "sessions:#{id}")
 
-    # release the gated stub so the test doesn't leave a hanging process
+    assert {:ok, :queued} = Phod.Session.send_message(id, "second")
+    assert %{queued: ["second"]} = Phod.Session.get_snapshot(id)
+
+    # finish the first run; the queued message starts a second run
+    release_running_tasks()
+    assert_receive :llm_called, 1000
+    release_running_tasks()
+
+    assert_receive {:session_snapshot, %{status: :idle, queued: [], messages: messages}}, 2000
+    texts = for %{"role" => "user", "content" => [%{"text" => text}]} <- messages, do: text
+    assert texts == ["first", "second"]
+  end
+
+  defp release_running_tasks do
     for task_child <- Task.Supervisor.children(Phod.Session.TaskSupervisor) do
       send(task_child, :release)
     end

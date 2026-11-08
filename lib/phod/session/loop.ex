@@ -60,7 +60,7 @@ defmodule Phod.Session.Loop do
   defp step(messages, ctx, remaining, total) do
     case Llm.complete(messages, ctx.instructions, ctx.tools) do
       {:error, reason} ->
-        {:error, reason, messages}
+        {:error, {reason, messages}}
 
       {:ok, %{content: blocks, stop_reason: stop_reason}} ->
         assistant_msg = %{"role" => "assistant", "content" => blocks}
@@ -95,16 +95,17 @@ defmodule Phod.Session.Loop do
     messages = messages ++ [wrap_up_msg]
     ctx.on_event.({:message_appended, wrap_up_msg})
 
+    # A run's error is `{:error, {reason, messages}}` on every path. If the
+    # summary request fails, the messages are kept as they were.
     Llm.complete(messages, ctx.instructions, ctx.tools, tool_choice: :none)
-    |> map_err(fn llm_reason ->
-      dbg(llm_reason)
-      {:error, reason, messages}
-    end)
-    |> ok_and_then(fn %{content: summary} ->
+    |> on_err(&dbg/1)
+    |> map_ok(fn %{content: summary} ->
       summary_msg = %{"role" => "assistant", "content" => summary}
       ctx.on_event.({:message_appended, summary_msg})
-      {:error, reason, messages ++ [summary_msg]}
+      {reason, messages ++ [summary_msg]}
     end)
+    |> unwrap_or_else(fn _llm_reason -> {reason, messages} end)
+    |> then(&{:error, &1})
   end
 
   defp continue_with_tools(messages, ctx, blocks, remaining, total) do

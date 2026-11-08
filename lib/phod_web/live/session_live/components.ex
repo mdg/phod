@@ -94,7 +94,7 @@ defmodule PhodWeb.SessionLive.Components do
 
   attr :transcript, :list, required: true
   attr :form, :any, required: true
-  attr :status, :atom, required: true
+  attr :queued, :list, default: []
   attr :last_error, :string, default: nil
 
   def chat_pane(assigns) do
@@ -111,6 +111,13 @@ defmodule PhodWeb.SessionLive.Components do
         {@last_error}
       </p>
 
+      <div :if={@queued != []} class="px-2 text-sm opacity-70" data-role="queued">
+        <p>Queued (sent after the current run):</p>
+        <ul class="list-disc pl-5">
+          <li :for={text <- @queued}>{text}</li>
+        </ul>
+      </div>
+
       <.form
         for={@form}
         id="message-form"
@@ -123,14 +130,9 @@ defmodule PhodWeb.SessionLive.Components do
             type="text"
             class="w-full input"
             placeholder="Message the agent…"
-            disabled={@status == :running}
           />
         </div>
-        <.button
-          variant="primary"
-          disabled={@status == :running}
-          phx-disable-with="Sending..."
-        >
+        <.button variant="primary">
           Send
         </.button>
       </.form>
@@ -171,11 +173,11 @@ defmodule PhodWeb.SessionLive.Components do
           data-role="tool-call-diff"
         >{@item.input["diff"]}</pre>
         <ul
-          :if={extra_patterns(@item) != []}
+          :if={grep_patterns(@item) != []}
           class="space-y-0.5 font-mono text-xs"
           data-role="tool-call-patterns"
         >
-          <li :for={pattern <- extra_patterns(@item)}><code>{pattern}</code></li>
+          <li :for={pattern <- grep_patterns(@item)}><code>{pattern}</code></li>
         </ul>
         <%= case @item.result do %>
           <% :pending -> %>
@@ -301,7 +303,7 @@ defmodule PhodWeb.SessionLive.Components do
   end
 
   # A grep call's summary shows its first two patterns, then "..." if there
-  # are more; the rest are listed in the expanded view.
+  # are more; the expanded view lists all of them.
   defp tool_summary(%{name: "grep", input: %{"patterns" => [_, _, _ | _] = patterns}}) do
     Enum.take(patterns, 2) |> Enum.join(", ") |> Kernel.<>(", ...")
   end
@@ -319,8 +321,8 @@ defmodule PhodWeb.SessionLive.Components do
     end
   end
 
-  defp extra_patterns(%{name: "grep", input: %{"patterns" => [_, _ | rest]}}), do: rest
-  defp extra_patterns(_item), do: []
+  defp grep_patterns(%{name: "grep", input: %{"patterns" => patterns}}), do: patterns
+  defp grep_patterns(_item), do: []
 
   # -- File explorer pane ---------------------------------------------------
 

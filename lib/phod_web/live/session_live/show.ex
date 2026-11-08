@@ -114,7 +114,7 @@ defmodule PhodWeb.SessionLive.Show do
           <Components.chat_pane
             transcript={@transcript}
             form={@form}
-            status={@snapshot.status}
+            queued={@snapshot.queued}
             last_error={@snapshot.last_error}
           />
           <Components.file_tree_pane tree={@tree} recent_edit_paths={@recent_edit_paths} />

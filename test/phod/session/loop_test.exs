@@ -161,7 +161,7 @@ defmodule Phod.Session.LoopTest do
     {on_event, _events} = collect_events()
     messages = [user_message("loop forever")]
 
-    assert {:error, reason, messages_so_far} = Loop.run(messages, root, on_event, 3)
+    assert {:error, {reason, messages_so_far}} = Loop.run(messages, root, on_event, 3)
     assert reason =~ "max rounds (3)"
     assert length(messages_so_far) > length(messages)
   end
@@ -173,7 +173,7 @@ defmodule Phod.Session.LoopTest do
     {on_event, _events} = collect_events()
     messages = [user_message("loop forever")]
 
-    assert {:error, _reason, messages_so_far} = Loop.run(messages, root, on_event, 1)
+    assert {:error, {_reason, messages_so_far}} = Loop.run(messages, root, on_event, 1)
 
     # the last request had tools disabled; every earlier one had them enabled
     assert_received {:tool_choice, nil}
@@ -199,7 +199,7 @@ defmodule Phod.Session.LoopTest do
     {on_event, _events} = collect_events()
     messages = [user_message("list then fail")]
 
-    assert {:error, reason, messages_so_far} = Loop.run(messages, root, on_event)
+    assert {:error, {reason, messages_so_far}} = Loop.run(messages, root, on_event)
     assert is_binary(reason)
     # original user message + assistant tool_use + user tool_result
     assert length(messages_so_far) == 3

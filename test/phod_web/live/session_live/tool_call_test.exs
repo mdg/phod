@@ -28,20 +28,22 @@ defmodule PhodWeb.SessionLive.ToolCallTest do
     refute html =~ "..."
   end
 
-  test "the expanded grep view lists the patterns after the first two" do
+  test "the expanded grep view lists every pattern" do
     html = render_component(&Components.tool_call_block/1, item: grep_item(["alpha", "beta", "gamma", "delta"]))
 
     doc = LazyHTML.from_fragment(html)
     listed = doc |> LazyHTML.query("[data-role=tool-call-patterns] code") |> LazyHTML.text()
 
+    assert listed =~ "alpha"
+    assert listed =~ "beta"
     assert listed =~ "gamma"
     assert listed =~ "delta"
-    refute listed =~ "alpha"
   end
 
-  test "no extra list when a grep call has two or fewer patterns" do
+  test "a grep call with one pattern still lists it in the expanded view" do
     html = render_component(&Components.tool_call_block/1, item: grep_item(["alpha"]))
 
-    refute html =~ "tool-call-patterns"
+    assert html =~ "tool-call-patterns"
+    assert html =~ "alpha"
   end
 end

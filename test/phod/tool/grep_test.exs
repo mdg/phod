@@ -56,4 +56,11 @@ defmodule Phod.Tool.GrepTest do
     assert {:error, msg} = Tool.run("grep", root, %{"patterns" => [""]})
     assert msg =~ "invalid empty pattern"
   end
+
+  test "a single string pattern is searched as one pattern", %{root: root} do
+    write(root, "src/a.ex", "def alpha do\nend\n")
+
+    assert {:ok, %{matches: [%{path: "src/a.ex", line: "def alpha do"}]}} =
+             Tool.run("grep", root, %{"patterns" => "alpha"})
+  end
 end

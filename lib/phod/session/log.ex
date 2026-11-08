@@ -67,6 +67,12 @@ defmodule Phod.Session.Log do
     end)
   end
 
+  @doc "An entry recording why an agent run failed, so a stopped run is visible in the log."
+  @spec error_entry(String.t(), DateTime.t()) :: iodata()
+  def error_entry(reason, now \\ DateTime.utc_now()) do
+    entry("phod", now, ["**run error:**\n\n", fence(reason, "text")])
+  end
+
   @doc "A sender entry for a user's message as it was sent."
   @spec user_entry(String.t(), String.t(), DateTime.t()) :: iodata()
   def user_entry(user_name, text, now \\ DateTime.utc_now()) do

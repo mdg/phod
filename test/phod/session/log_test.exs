@@ -153,4 +153,12 @@ defmodule Phod.Session.LogTest do
 
     assert {:error, _} = Log.append(Path.join(missing_dir, "x.md"), "entry")
   end
+
+  test "error_entry/2 records a run error as its own entry" do
+    entry = IO.iodata_to_binary(Phod.Session.Log.error_entry("tool loop exceeded max rounds (25)"))
+
+    assert entry =~ "### phod · "
+    assert entry =~ "**run error:**"
+    assert entry =~ "tool loop exceeded max rounds (25)"
+  end
 end

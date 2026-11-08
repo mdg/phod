@@ -18,11 +18,14 @@ defmodule Phod.Session.Loop do
 
   @doc """
   Runs the loop. `worktrees` is the session's `[{name, root}]`, primary first;
-  a single root path is accepted as one unnamed worktree.
+  a single root path is accepted as one unnamed worktree. `max_rounds` caps the
+  tool rounds in this run; by default it is the `:max_tool_rounds` config
+  value (25 when unset).
   """
-  @spec run([map()], [{String.t(), String.t()}] | String.t(), on_event(), pos_integer()) ::
+  @spec run([map()], [{String.t(), String.t()}] | String.t(), on_event(), pos_integer() | nil) ::
           {:ok, [map()]} | {:error, String.t(), [map()]}
-  def run(messages, worktrees, on_event, max_rounds \\ @default_max_rounds) do
+  def run(messages, worktrees, on_event, max_rounds \\ nil) do
+    max_rounds = max_rounds || Application.get_env(:phod, :max_tool_rounds, @default_max_rounds)
     worktrees = normalize_worktrees(worktrees)
     {_primary, primary_root} = hd(worktrees)
 

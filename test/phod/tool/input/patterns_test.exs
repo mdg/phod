@@ -21,7 +21,7 @@ defmodule Phod.Tool.Input.PatternsTest do
   end
 
   test "rejects a non-list" do
-    assert {:error, "invalid patterns"} = Patterns.validate("foo", %{})
+    assert {:error, "invalid patterns"} = Patterns.validate(42, %{})
   end
 
   test "rejects empty or non-string entries" do
@@ -38,5 +38,12 @@ defmodule Phod.Tool.Input.PatternsTest do
     assert {:error, msg} = Patterns.validate(["[bad", "(also bad"], %{})
     assert msg =~ "[bad"
     refute msg =~ "(also bad"
+  end
+
+  test "a single string is taken as one pattern" do
+    assert {:ok, ["foo"]} = Patterns.validate("foo", %{})
+    assert {:error, msg} = Patterns.validate("(unclosed", %{})
+    assert msg =~ "invalid regex"
+    assert {:error, "invalid empty pattern"} = Patterns.validate("", %{})
   end
 end

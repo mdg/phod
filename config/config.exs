@@ -10,7 +10,9 @@ import Config
 config :phod,
   ecto_repos: [Phod.Repo],
   generators: [timestamp_type: :utc_datetime],
-  worktree_base: "/home/mdg/phod/tree"
+  worktree_base: "/home/mdg/phod/tree",
+  # tool rounds allowed per agent run before the run stops with an error
+  max_tool_rounds: 30
 
 # Configure the endpoint
 config :phod, PhodWeb.Endpoint,

@@ -278,8 +278,12 @@ defmodule Phod.Session do
 
     state =
       case result do
-        {:ok, _messages} -> %{state | status: :idle, task_ref: nil}
-        {:error, reason, _messages} -> %{state | status: :idle, task_ref: nil, last_error: reason}
+        {:ok, _messages} ->
+          %{state | status: :idle, task_ref: nil}
+
+        {:error, reason, _messages} ->
+          log(state, Log.error_entry(reason))
+          %{state | status: :idle, task_ref: nil, last_error: reason}
       end
 
     broadcast(state)
@@ -288,13 +292,10 @@ defmodule Phod.Session do
 
   def handle_info({:DOWN, ref, :process, _pid, reason}, %__MODULE__{task_ref: ref} = state) do
     Logger.error("agent run crashed for session #{state.id}: #{inspect(reason)}")
+    message = "agent run crashed: #{inspect(reason)}"
+    log(state, Log.error_entry(message))
 
-    state = %{
-      state
-      | status: :idle,
-        task_ref: nil,
-        last_error: "agent run crashed: #{inspect(reason)}"
-    }
+    state = %{state | status: :idle, task_ref: nil, last_error: message}
 
     broadcast(state)
     {:noreply, state, state.idle_timeout}

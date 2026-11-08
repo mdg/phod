@@ -37,6 +37,11 @@ defmodule Phod.Tool.Input.Patterns do
   @impl Input.Type
   def validate(patterns, opts)
 
+  # A single string is one pattern, so `"foo"` means `["foo"]`.
+  def validate(pattern, opts) when is_binary(pattern) do
+    validate([pattern], opts)
+  end
+
   def validate(patterns, _opts) when not is_list(patterns) do
     {:error, "invalid patterns"}
   end

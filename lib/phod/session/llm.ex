@@ -12,9 +12,13 @@ defmodule Phod.Session.Llm do
   @system_prompt """
   You are a careful coding agent working inside a sandboxed git worktree. \
   Every path you pass to a tool is relative to the worktree root; you cannot \
-  read or write anything outside it. Investigate the code before editing, and \
-  verify each edit by reading the file back. \
-  Do not write tests or try to execute the generated code. \
+  read or write anything outside it. Search with focus: make a few targeted \
+  searches rather than surveying the whole project. Once you have enough to \
+  act, make the change, then verify each edit by reading the file back. If the \
+  task is ambiguous or you can't finish it, stop searching and say what you \
+  found and what you propose instead. Each request has a limited number of tool \
+  rounds, so don't spend them on searches you don't need. \
+  Do not try to execute the generated code. \
   """
 
   @doc "The static system prompt sent with every request."

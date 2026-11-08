@@ -5,13 +5,14 @@ defmodule PhodWeb.SessionLive.ToolCallTest do
 
   alias PhodWeb.SessionLive.Components
 
+  # The tool's result carries the patterns it validated.
   defp grep_item(patterns) do
     %{
       id: "tu_1",
       kind: :tool_call,
       name: "grep",
       input: %{"patterns" => patterns},
-      result: {:ok, %{"matches" => [], "truncated?" => false}}
+      result: {:ok, %{"matches" => [], "truncated?" => false, "patterns" => patterns}}
     }
   end
 
@@ -40,10 +41,32 @@ defmodule PhodWeb.SessionLive.ToolCallTest do
     assert listed =~ "delta"
   end
 
+  test "a grep call whose pattern arrived as a bare string renders without crashing" do
+    item = %{grep_item([]) | input: %{"patterns" => "[\"/]nfl/players"}, result: {:ok, %{"matches" => [], "truncated?" => false, "patterns" => ["[\"/]nfl/players"]}}}
+    html = render_component(&Components.tool_call_block/1, item: item)
+
+    assert html =~ "nfl/players"
+  end
+
   test "a grep call with one pattern still lists it in the expanded view" do
     html = render_component(&Components.tool_call_block/1, item: grep_item(["alpha"]))
 
     assert html =~ "tool-call-patterns"
     assert html =~ "alpha"
+  end
+
+  test "a grep call that failed validation shows the error, not its patterns" do
+    item = %{grep_item(["[bad"]) | result: {:error, "patterns: invalid regex \"[bad\""}}
+    html = render_component(&Components.tool_call_block/1, item: item)
+
+    assert html =~ "patterns: invalid regex"
+    refute html =~ "tool-call-patterns"
+  end
+
+  test "a pending grep call has no patterns to show yet" do
+    item = %{grep_item(["alpha"]) | result: :pending}
+    html = render_component(&Components.tool_call_block/1, item: item)
+
+    refute html =~ "tool-call-patterns"
   end
 end

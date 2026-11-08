@@ -303,13 +303,13 @@ defmodule PhodWeb.SessionLive.Components do
   end
 
   # A grep call's summary shows its first two patterns, then "..." if there
-  # are more; the expanded view lists all of them.
-  defp tool_summary(%{name: "grep", input: %{"patterns" => [_, _, _ | _] = patterns}}) do
-    Enum.take(patterns, 2) |> Enum.join(", ") |> Kernel.<>(", ...")
-  end
-
-  defp tool_summary(%{name: "grep", input: %{"patterns" => [_ | _] = patterns}}) do
-    Enum.join(patterns, ", ")
+  # are more; the expanded view lists all of them. Both read the patterns the
+  # tool validated, not the raw input.
+  defp tool_summary(%{name: "grep"} = item) do
+    case grep_patterns(item) do
+      [_, _, _ | _] = patterns -> Enum.take(patterns, 2) |> Enum.join(", ") |> Kernel.<>(", ...")
+      patterns -> Enum.join(patterns, ", ")
+    end
   end
 
   defp tool_summary(%{input: input}) do
@@ -321,7 +321,9 @@ defmodule PhodWeb.SessionLive.Components do
     end
   end
 
-  defp grep_patterns(%{name: "grep", input: %{"patterns" => patterns}}), do: patterns
+  # The patterns the grep tool validated, from its result. While the call is
+  # pending, or when validation failed (shown as the error instead), there are none.
+  defp grep_patterns(%{name: "grep", result: {:ok, %{"patterns" => patterns}}}), do: patterns
   defp grep_patterns(_item), do: []
 
   # -- File explorer pane ---------------------------------------------------

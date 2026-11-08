@@ -54,7 +54,7 @@ defmodule Phod.Tool.Grep do
       {:error, reason} when is_binary(reason) ->
         {:error, reason}
     end
-    |> map_ok(&parse_output/1)
+    |> map_ok(&(&1 |> parse_output() |> Map.put(:patterns, patterns)))
     |> map_err(&normalize_rg_error/1)
     |> on_err(fn reason -> Logger.warning("grep failed: " <> reason) end)
   end

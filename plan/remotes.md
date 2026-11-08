@@ -1,123 +1,150 @@
 # Remote Sessions
 
-Let one session act on another. Once sessions are connected, the local session
-can:
-
-1. run tools in the remote session's worktrees, and
-2. prompt the remote session to make a change, which its own agent carries out.
-
-Each session keeps its own worktrees, sandbox, and transcript. A connection
-only lets one session reach another; it doesn't merge them.
+Let one session send work to another. Sessions stay separate: each keeps its own
+worktrees, sandbox, transcript, and queue. A connection only lets two sessions
+exchange messages, and a session can run tools in a connected session's
+worktrees.
 
 ## Terms
 
-- **local** — the session whose agent is making the call.
-- **remote** — a session the local session is connected to. Connections are
-  per session id (`"<user>/<tree>"`).
-- **origin chain** — the sessions that led to a prompt. If A prompts B and B
-  prompts C, C's run has origin `[A, B]`. Used to stop loops (see below).
+Two kinds of relationship, defined so they read the same from either side.
 
-## Step 1: connect sessions (Elixir call)
+- **Connection** — a link between two sessions, made with the Elixir API. Its
+  two ends are **peers**: from either session's point of view, the other one is
+  its peer.
+- **Message** — one communication from a **sender** session to a **receiver**
+  session. A message has a **kind** (`send`, `ask`, or `reply`) and a flag
+  `want_reply` for `send`.
+- **Restricted run** — an agent run started by a message from another session.
+  It can only `reply` (see below).
 
-Add to `Phod.Session`:
+Words like "local" and "remote" are avoided. A session that sends a message is
+the sender of that message, whatever session it is.
+
+## Step 1: connect sessions (Elixir API only)
 
 ```elixir
-Phod.Session.connect(local_id, remote_id)     # :ok | {:error, reason}
-Phod.Session.disconnect(local_id, remote_id)  # :ok | {:error, :not_connected}
-Phod.Session.remotes(local_id)                # [remote_id]
+Phod.Session.connect(a_id, b_id)                 # mutual (default): a <-> b
+Phod.Session.connect(a_id, b_id, mode: :one_way) # a may message b; b may not message a
+Phod.Session.disconnect(a_id, b_id)              # ends both directions
+Phod.Session.peers(a_id)                         # [b_id]
 ```
 
-- `connect/2` checks that both sessions are running (`whereis/1`), that they
-  are different, and that the connection doesn't already exist. The remote is
-  stored in the local session's state, next to `worktrees`.
-- Connections are one way: A connecting to B lets A's agent use B. B gets no
-  rights over A.
-- The snapshot includes `remotes`, so the UI can show them.
-- Connections are in memory. A connection ends when either session stops.
+- Mutual is the default. A mutual connection is two one-way links, and
+  `disconnect/2` removes both.
+- Only callable from iex for now. No LLM tool and no UI can create a connection.
+- `connect/3` checks that both sessions are running, that they're different, and
+  that the link doesn't exist yet.
+- Connections live in memory. Keep the storage behind a small module
+  (`Phod.Session.Connections`) so it can move to a database later without
+  touching callers.
+- The snapshot includes `peers`, so the UI can show them.
 
-Tests: connect, duplicate, self, missing remote, disconnect, and the snapshot.
+Tests: mutual and one-way links, duplicates, self, a missing session, disconnect
+removing both directions, and the snapshot.
 
-## Step 2: prompt tool
+## Step 2: messaging between sessions
 
-A tool the local agent can call to give a connected session a prompt:
+Two tools, offered only when the session has at least one peer that allows the
+direction (a one-way peer can receive from the session but not be messaged by
+it, so the tools are offered accordingly).
 
-- **Name:** `prompt_session`
+### `send`
+
+Sends a prompt to a peer, the start of an exchange.
+
 - **Parameters:**
-  - `remote` (required): one of the connected session ids. The enum is built
-    per session, the same way the `worktree` enum is.
-  - `prompt` (required, non-empty string): what the remote session should do.
+  - `peer` (required): one of this session's peers, as an enum.
+  - `prompt` (required, non-empty string): what the receiver should do.
+  - `want_reply` (boolean, default `false`): whether the receiver should send a
+    final reply when done.
   - `goal` (required, from the common goal parameter).
-- **Behaviour:** calls `Session.send_message(remote, prompt, sender)`, where
-  `sender` is the local session id. The prompt is shown in the remote's
-  transcript from that sender, so anyone watching it can tell where it came
-  from. If the remote is busy, the prompt queues, as any message does.
-- **Result:** `{:ok, %{remote: id, status: :started | :queued}}`. The tool
-  doesn't wait for the remote's reply. The reply appears in the remote's
-  transcript, not in the local one.
+- **Behaviour:** the receiver gets the prompt as a message from the sender. If
+  the receiver is busy, the message queues.
+- **Result:** `{:ok, %{peer: id, status: :started | :queued}}`. A queued result
+  tells the model its prompt is waiting behind the receiver's current run.
 
-### Loop guard
+### `reply`
 
-A prompt is refused when its target is already in the origin chain, or is the
-session itself. The chain travels with the prompt: `send_message/3` takes an
-`origin:` option, the remote's run carries it, and `prompt_session` passes it
-on. A maximum chain length (start with 3) stops long chains.
+Sends the receiver's answer back to the sender of the message it's handling.
 
-Without this, A and B could prompt each other forever, or wait on each other
-while both are running.
+- **Parameters:**
+  - `kind` (required): `ask` or `final`.
+    - `ask` — a question, or a request for more detail or instruction. The
+      sender answers with a `reply` of its own.
+    - `final` — the receiver's final response to the sender.
+  - `text` (required, non-empty string).
+  - `goal` (required, from the common goal parameter).
+- **Behaviour:** delivered to the session that sent the message being handled.
+  The sender sees it as a message from the receiver, and its transcript shows
+  the kind.
+- **Result:** `{:ok, %{to: id, status: :started | :queued}}`.
 
-### Notes
+### Restriction
 
-- The prompt tool doesn't need a connection to run without one. With no
-  remotes, the `remote` enum is absent and the tool isn't offered.
-- The remote session's agent treats the prompt as a user message. Its own
-  sandbox, tools, and round limit still apply. The local agent gets no more
-  power over the remote's worktree than a user typing the same prompt.
+A restricted run can't use `send` or any tool that acts on another session. It
+can use its own worktree tools, and `reply`, and nothing else across sessions.
+This takes the place of a chain: a message can't lead to a third session,
+because the session that receives it has no way to contact one.
 
-Tests: a prompt starts or queues the remote run, the sender is shown in the
-remote transcript, refusal on loops, refusal on unknown or unconnected
-remotes, and the chain limit.
+- The restriction is set when the run starts, from the message that started it.
+  It lasts for that run only.
+- A restricted run's `reply` goes only to the session that sent the message.
+- A session that sent a `send` is not restricted, so it can answer an `ask` by
+  sending another message in the same exchange. A session that receives an
+  `ask` is restricted, so it answers with a `reply`.
 
-## Step 3: remote tool runs
+### Message shape
 
-Let a connected session's tools run against the remote's worktrees.
+Each message carries its sender, kind, and `want_reply`. The receiver's
+transcript shows the sender's session id, the kind, and the text. A message with
+`want_reply: true` ends with a `final` reply from the receiver. Nothing enforces
+that beyond the prompt, so the receiver's round limit and goal rules still apply.
 
-- Add an optional `remote` parameter to the existing tools, enumerating the
-  connected session ids, the same way `worktree` works. Absent means the
-  local session.
-- `Tool.run/3` gets the remote's `[{name, root}]` (from a new
-  `Session.worktrees/1`), then runs as it does now. `worktree` still chooses
-  within the remote's worktrees.
-- `allow_writes` still controls whether a remote command can write. The
-  remote's sandbox is unchanged.
-- Results and edits are attributed to the remote. The edit event gets a
-  `remote` field, and the transcript shows which session a call ran in.
+Tests: `send` starts or queues the receiver's run and the queued result is
+returned; the sender appears in the receiver's transcript; a restricted run is
+not offered `send`; a restricted `reply` goes to the sender only; a one-way peer
+can't be messaged in the wrong direction; `ask` and `final` are shown differently.
 
-Open point: a write tool that runs in a remote while that remote is busy
-could race with the remote's own agent. See the questions below.
+## Step 3 (optional): run tools in a peer's worktrees
+
+Lets a session's tools act on a peer's worktrees.
+
+- An optional `peer` parameter on the existing tools, enumerating the session's
+  peers, the same way `worktree` works. Absent means this session's own
+  worktrees.
+- `Tool.run/3` gets the peer's `[{name, root}]` from a new
+  `Session.worktrees/1`, then runs as it does now. `worktree` still chooses
+  within the peer's worktrees.
+- `allow_writes` still controls whether a command can write. The peer's
+  sandbox is unchanged.
+- Restricted runs get no `peer` parameter.
+- Results and edits are attributed to the peer: the edit event carries `peer`,
+  and the transcript shows which session the call ran in.
+
+Open point: a write tool that runs in a peer while that peer is busy could race
+with the peer's own agent. See the questions below.
 
 ## Questions to settle before building
 
-1. **One way or mutual?** The plan above is one way: A → B. Mutual is two
-   `connect` calls.
-2. **Wait for the reply, or fire and forget?** The plan is fire and forget.
-   Waiting would need a timeout, and it's the case most likely to deadlock
-   if loops aren't guarded.
-3. **Remote writes while the remote is busy:** refuse, queue, or allow?
-   Refusing is safest. Queueing would mean a second queue, for tool calls.
-4. **Limit on chain length:** is 3 right?
-5. **Persist connections** across restarts, or in memory only? The plan says
-   in memory, like worktrees.
-6. **Who can connect?** Any logged-in user with a display name, or only the
-   owner of the local session? The plan doesn't check, because sessions have
-   no owners yet.
+1. **Restricted runs and worktree tools.** The plan lets a restricted run use
+   its own worktree tools. Should it also be limited to read-only tools?
+2. **Exchange length.** Nothing limits how many `ask`/`reply` rounds two
+   sessions run. Should there be a cap per exchange, or is the round limit
+   per run enough?
+3. **Remote writes while the peer is busy (step 3):** refuse, queue, or allow?
+   Refusing is safest.
+4. **Persistence:** the storage module is the seam; the database shape can wait
+   until it's needed.
 
 ## Build order
 
-1. Step 1 — `connect/2`, `disconnect/2`, `remotes/1`, snapshot, tests.
-2. Step 2 — `send_message/3` with `origin:`, the `prompt_session` tool, the
-   loop guard, UI for the sender, tests.
-3. Step 3 — `Session.worktrees/1`, the `remote` parameter, remote routing in
-   the loop, attribution in events and the transcript, tests.
+1. Step 1 — `connect/3`, `disconnect/2`, `peers/1`, snapshot, tests (iex only).
+2. Step 2 — message kinds and `want_reply` on messages, restriction for
+   runs started by messages, the `send` and `reply` tools, queue reporting,
+   UI for the sender and kind, tests.
+3. Step 3 — `Session.worktrees/1`, the `peer` parameter, routing in the loop,
+   attribution in events and the transcript, tests.
 
-Each step can be used on its own. Step 2 is what makes the sessions useful
-together; step 3 is optional if prompts are enough.
+Step 2 is what makes sessions useful together. Step 3 can wait if messages are
+enough.

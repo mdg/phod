@@ -151,6 +151,8 @@ defmodule Phod.Tool.Input do
       name: name,
       desc: desc,
       required?: Keyword.get(opts, :required, false),
+      default: Keyword.get(opts, :default),
+      opts: Keyword.drop(opts, [:required, :default]),
     }
   end
 

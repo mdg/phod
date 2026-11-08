@@ -22,8 +22,9 @@ defmodule Phod.Tool.Exec do
     Run a command in the worktree, with the worktree as its working directory. \
     `cmd` is the program and its arguments as separate strings, for example \
     ["ls", "-l", "lib"]. There is no network access, so anything that downloads \
-    dependencies will fail. The worktree is read-only: a command can read files \
-    but not change them. Returns stdout, stderr, and the exit status; a non-zero \
+    dependencies will fail. The worktree is read-only unless `allow_writes` is \
+    true, in which case commands can change files in it. Returns stdout, stderr, \
+    and the exit status; a non-zero \
     exit is a normal result to read, not an error. The command is stopped after \
     #{div(@timeout_ms, 1000)} seconds.\
     """
@@ -31,16 +32,20 @@ defmodule Phod.Tool.Exec do
   @impl Tool.B
   def params do
     [
-      Tool.Input.strings(:cmd, "The program and its arguments, one string each.", required: true)
+      Tool.Input.strings(:cmd, "The program and its arguments, one string each.", required: true),
+      Tool.Input.bool(:allow_writes, "Let the command change files in the worktree.",
+        default: false
+      )
     ]
   end
 
   @impl Tool.B
-  def run(%{cmd: [program | args]}, %{session_root: root}) do
+  def run(%{cmd: [program | args], allow_writes: allow_writes}, %{session_root: root}) do
     case find_program(program, root) do
       {:ok, exe} ->
         Sandbox.run([exe | args],
           root: root,
+          allow_writes: allow_writes,
           ro: [Path.dirname(exe)],
           path: [Path.dirname(exe)],
           cwd: root,

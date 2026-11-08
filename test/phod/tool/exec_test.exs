@@ -27,12 +27,29 @@ defmodule Phod.Tool.ExecTest do
     assert String.trim(stdout) == root
   end
 
-  test "cannot write inside the worktree: it is read-only", %{root: root} do
+  test "cannot write inside the worktree by default: it is read-only", %{root: root} do
     assert {:ok, %{exit_status: status}} =
              Tool.run("exec", root, %{"cmd" => ["sh", "-c", "echo made > out.txt"]})
 
     assert status != 0
     refute File.exists?(Path.join(root, "out.txt"))
+  end
+
+  test "with allow_writes: true a command can change files in the worktree", %{root: root} do
+    assert {:ok, %{exit_status: 0}} =
+             Tool.run("exec", root, %{
+               "cmd" => ["sh", "-c", "echo made > out.txt"],
+               "allow_writes" => true
+             })
+
+    assert File.read!(Path.join(root, "out.txt")) == "made\n"
+  end
+
+  test "allow_writes must be a boolean", %{root: root} do
+    assert {:error, msg} =
+             Tool.run("exec", root, %{"cmd" => ["echo", "hi"], "allow_writes" => "yes"})
+
+    assert msg =~ "allow_writes: invalid boolean"
   end
 
   test "a write outside the worktree does not reach the host", %{root: root} do

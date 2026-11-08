@@ -161,4 +161,43 @@ defmodule Phod.Session.LogTest do
     assert entry =~ "**run error:**"
     assert entry =~ "tool loop exceeded max rounds (25)"
   end
+
+  test "tool call entries carry the tool_use id" do
+    entries =
+      Log.message_entries(
+        %{
+          "role" => "assistant",
+          "content" => [
+            %{"type" => "tool_use", "id" => "toolu_01", "name" => "grep", "input" => %{}}
+          ]
+        },
+        "Ada",
+        @now
+      )
+
+    assert text(entries) =~ "**tool call:** `grep` · id `toolu_01`"
+  end
+
+  test "tool result entries carry the tool_use_id they answer" do
+    entries =
+      Log.message_entries(
+        %{
+          "role" => "user",
+          "content" => [
+            %{"type" => "tool_result", "tool_use_id" => "toolu_01", "content" => "ok"},
+            %{
+              "type" => "tool_result",
+              "tool_use_id" => "toolu_02",
+              "content" => "nope",
+              "is_error" => true
+            }
+          ]
+        },
+        "Ada",
+        @now
+      )
+
+    assert text(entries) =~ "**tool result:** · id `toolu_01`"
+    assert text(entries) =~ "**tool error:** · id `toolu_02`"
+  end
 end

@@ -19,6 +19,12 @@ defmodule Phod.Tool do
     __MODULE__.WriteFile => true,
   }
 
+  @remote_tools [
+    __MODULE__.Grep,
+    __MODULE__.ListFiles,
+    __MODULE__.ReadFiles,
+  ]
+
   @names Map.new(@tools, fn {tool, _} -> {tool.name(), tool} end)
 
   @spec all() :: [module()]

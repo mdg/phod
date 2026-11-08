@@ -119,25 +119,28 @@ Lets a session's tools act on a peer's worktrees.
 - `Tool.run/3` gets the peer's `[{name, root}]` from a new
   `Session.worktrees/1`, then runs as it does now. `worktree` still chooses
   within the peer's worktrees.
-- `allow_writes` still controls whether a command can write. The peer's
-  sandbox is unchanged.
+- Only read-only tools are offered for a peer. Writes go through `send`.
 - `:peer` runs get no `peer` parameter.
 - Results and edits are attributed to the peer: the edit event carries `peer`,
   and the transcript shows which session the call ran in.
 
-Open point: a write tool that runs in a peer while that peer is busy could race
-with the peer's own agent. See the questions below.
+Only read-only tools run in a peer's worktrees (see the decisions below).
 
-## Questions to settle before building
+## Decisions
 
-1. **Peer-mode runs and worktree tools.** The plan lets a `:peer` run use its
-   own worktree tools. Should it also be limited to read-only tools?
-2. **Exchange length.** Nothing limits how many rounds of `send` and `reply`
-   two sessions run. Should there be a cap per exchange, or is the round limit
-   per run enough?
-3. **Remote writes while the peer is busy (step 3):** refuse, queue, or allow?
-   Refusing is safest.
-4. **Persistence:** the storage module is the seam; the database shape can wait
+1. **Peer mode has the worktree tools.** A `:peer` run can use its own worktree
+   tools, read and write, like a `:user` run. Peer mode only removes the
+   cross-session tools (`send`, and anything acting on another session).
+2. **One reply per send.** A `send` gets zero or one replies. A `:peer` run
+   ends when it calls `reply`, and its session returns to idle. A `send` with
+   `want_reply: true` makes the sender's run wait for that reply before the run
+   finishes. The wait has a timeout, so a reply that never comes doesn't keep the
+   session running forever. Because a `:peer` run can't `send`, a wait can't form
+   a cycle.
+3. **No writes into a peer.** Step 3 runs read-only tools only in a peer's
+   worktrees. Changes to a peer's files are made by sending it a message, so the
+   peer's own run makes them, in its own sandbox.
+4. **Persistence.** The storage module is the seam. The database shape waits
    until it's needed.
 
 ## Build order

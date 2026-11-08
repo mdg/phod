@@ -84,8 +84,8 @@ defmodule Phod.Tool.Grep do
           %{
             path: String.trim_leading(data["path"]["text"], "./"),
             line_number: data["line_number"],
-            line: String.trim_trailing(data["lines"]["text"], "\n")
-          }
+            line: String.trim_trailing(data["lines"]["text"], "\n"),
+          },
         ]
 
       _ ->

@@ -11,7 +11,7 @@ defmodule Phod.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
     ]
   end
 
@@ -21,13 +21,13 @@ defmodule Phod.MixProject do
   def application do
     [
       mod: {Phod.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools],
     ]
   end
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test],
     ]
   end
 
@@ -75,7 +75,10 @@ defmodule Phod.MixProject do
       {:bandit, "~> 1.5"},
       {:rexult, github: "mdg/rexult"},
       {:rambo, "~> 0.3.4"},
-      {:tzdata, "~> 1.1"}
+      {:tzdata, "~> 1.1"},
+
+      # dev only
+      {:freedom_formatter, "~> 2.1", only: [:dev, :test], runtime: false},
     ]
   end
 
@@ -96,9 +99,9 @@ defmodule Phod.MixProject do
       "assets.deploy": [
         "tailwind phod --minify",
         "esbuild phod --minify",
-        "phx.digest"
+        "phx.digest",
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"],
     ]
   end
 end

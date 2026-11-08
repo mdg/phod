@@ -9,7 +9,7 @@ defmodule Phod.Tool.Input.Param do
           desc: String.t(),
           required?: boolean(),
           default: term(),
-          opts: map()
+          opts: map(),
         }
 
   defstruct type: nil,

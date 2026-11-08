@@ -23,7 +23,9 @@ defmodule Phod.Tool.ListFilesTest do
     end
 
     test "parses a symlink by its own name, not its target" do
-      assert Tool.ListFiles.parse_line("lrwxrwxrwx 1 mdg mdg 5 Nov  4 22:16 link -> target.txt") ==
+      assert Tool.ListFiles.parse_line(
+               "lrwxrwxrwx 1 mdg mdg 5 Nov  4 22:16 link -> target.txt"
+             ) ==
                %{name: "link", type: "symlink", num_bytes: 5}
     end
 
@@ -58,14 +60,14 @@ defmodule Phod.Tool.ListFilesTest do
                %{name: "main.rs", type: "file", num_bytes: 337},
                %{name: "README.md", type: "file", num_bytes: 6},
                %{name: "sub", type: "dir", num_bytes: 4096},
-               %{name: "taco.txt", type: "symlink", num_bytes: 12}
+               %{name: "taco.txt", type: "symlink", num_bytes: 12},
              ]
     end
   end
 
   describe "attach_mime_types/2" do
     test "adds a mime_type and charset to each entry, resolving names against dir_abs", %{
-      root: root
+      root: root,
     } do
       write(root, "README.md", "hello\n")
 

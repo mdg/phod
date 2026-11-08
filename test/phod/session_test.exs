@@ -11,14 +11,18 @@ defmodule Phod.SessionTest do
     fn conn ->
       Req.Test.json(conn, %{
         "content" => [%{"type" => "text", "text" => text}],
-        "stop_reason" => stop_reason
+        "stop_reason" => stop_reason,
       })
     end
   end
 
   import Phod.Session.TestHelpers, only: [start_and_allow: 2]
 
-  test "send_message/2 runs the loop and settles back to :idle", %{id: id, user: user, tree: tree} do
+  test "send_message/2 runs the loop and settles back to :idle", %{
+    id: id,
+    user: user,
+    tree: tree
+  } do
     Req.Test.expect(Phod.Session.LlmStub, text_response("hello!"))
 
     pid = start_and_allow(user, tree)
@@ -35,7 +39,7 @@ defmodule Phod.SessionTest do
   test "a second send_message/2 while running is rejected with :busy", %{
     id: id,
     user: user,
-    tree: tree
+    tree: tree,
   } do
     test_pid = self()
 
@@ -63,7 +67,7 @@ defmodule Phod.SessionTest do
     id: id,
     root: root,
     user: user,
-    tree: tree
+    tree: tree,
   } do
     diff = "--- /dev/null\n+++ b/new.txt\n@@ -0,0 +1 @@\n+hello\n"
 
@@ -74,10 +78,10 @@ defmodule Phod.SessionTest do
             "type" => "tool_use",
             "id" => "tu_1",
             "name" => "patch",
-            "input" => %{"path" => "new.txt", "diff" => diff}
-          }
+            "input" => %{"path" => "new.txt", "diff" => diff},
+          },
         ],
-        "stop_reason" => "tool_use"
+        "stop_reason" => "tool_use",
       })
     end)
 
@@ -99,7 +103,7 @@ defmodule Phod.SessionTest do
   test "a crashing agent run logs the crash reason and settles back to :idle", %{
     id: id,
     user: user,
-    tree: tree
+    tree: tree,
   } do
     Req.Test.stub(Phod.Session.LlmStub, fn _conn -> raise "boom" end)
 
@@ -123,7 +127,7 @@ defmodule Phod.SessionTest do
     id: id,
     root: root,
     user: user,
-    tree: tree
+    tree: tree,
   } do
     log_path = Phod.Session.Log.path(root)
     on_exit(fn -> File.rm(log_path) end)
@@ -131,9 +135,9 @@ defmodule Phod.SessionTest do
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
       Req.Test.json(conn, %{
         "content" => [
-          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}}
+          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}},
         ],
-        "stop_reason" => "tool_use"
+        "stop_reason" => "tool_use",
       })
     end)
 

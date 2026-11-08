@@ -86,7 +86,7 @@ defmodule Phod.Session.Loop do
          path: payload.path,
          applied_hunks: payload.applied_hunks,
          created?: payload.created?,
-         at: DateTime.utc_now()
+         at: DateTime.utc_now(),
        }}
     )
   end

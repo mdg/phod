@@ -43,14 +43,15 @@ defmodule Phod.Tool.ElixirScriptTest do
 
     script = "File.write!(#{inspect(outside)}, \"escaped\")"
 
-    assert {:ok, %{exit_status: status}} = Tool.run("elixir_script", root, %{"script" => script})
+    assert {:ok, %{exit_status: status}} =
+             Tool.run("elixir_script", root, %{"script" => script})
 
     assert status != 0
     refute File.exists?(outside)
   end
 
   test "can read and write inside the worktree, visible on the host after the run", %{
-    root: root
+    root: root,
   } do
     write(root, "input.txt", "hello\n")
 
@@ -83,7 +84,7 @@ defmodule Phod.Tool.ElixirScriptTest do
   end
 
   test "a completed run leaves no stray message that could corrupt a later tool call", %{
-    root: root
+    root: root,
   } do
     # Regression guard: Rambo.run/3's own `:timeout` option schedules a
     # bare `:kill` message via Process.send_after/3 that is never

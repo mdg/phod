@@ -16,10 +16,13 @@ defmodule PhodWeb.SessionLive.FileTree do
           type: String.t(),
           num_bytes: non_neg_integer(),
           mime_type: String.t(),
-          charset: String.t() | nil
+          charset: String.t() | nil,
         }
   @type entries :: {:ok, [entry()]} | {:error, String.t()}
-  @type t :: %__MODULE__{expanded: MapSet.t(String.t()), entries: %{String.t() => entries()}}
+  @type t :: %__MODULE__{
+          expanded: MapSet.t(String.t()),
+          entries: %{String.t() => entries()}
+        }
 
   defstruct expanded: MapSet.new(), entries: %{}
 
@@ -41,7 +44,7 @@ defmodule PhodWeb.SessionLive.FileTree do
       %{
         tree
         | expanded: MapSet.put(tree.expanded, path),
-          entries: Map.put(tree.entries, path, fetch(root, path))
+          entries: Map.put(tree.entries, path, fetch(root, path)),
       }
     end
   end

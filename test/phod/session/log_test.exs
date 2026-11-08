@@ -72,9 +72,9 @@ defmodule Phod.Session.LogTest do
               "type" => "tool_use",
               "id" => "tu_1",
               "name" => "grep",
-              "input" => %{"patterns" => ["x"]}
-            }
-          ]
+              "input" => %{"patterns" => ["x"]},
+            },
+          ],
         },
         "Ada",
         @now
@@ -92,8 +92,12 @@ defmodule Phod.Session.LogTest do
         %{
           "role" => "user",
           "content" => [
-            %{"type" => "tool_result", "tool_use_id" => "tu_1", "content" => "{\"ok\":true}"}
-          ]
+            %{
+              "type" => "tool_result",
+              "tool_use_id" => "tu_1",
+              "content" => "{\"ok\":true}"
+            },
+          ],
         },
         "Ada",
         @now
@@ -108,9 +112,9 @@ defmodule Phod.Session.LogTest do
               "type" => "tool_result",
               "tool_use_id" => "tu_2",
               "content" => "no such file",
-              "is_error" => true
-            }
-          ]
+              "is_error" => true,
+            },
+          ],
         },
         "Ada",
         @now

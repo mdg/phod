@@ -40,7 +40,7 @@ defmodule Phod.Session.Llm do
         "messages" => messages,
         "tools" => Phod.Tool.anthropic_tools(),
         "max_tokens" => cfg[:max_tokens],
-        "stream" => false
+        "stream" => false,
       }
 
       cfg
@@ -66,7 +66,10 @@ defmodule Phod.Session.Llm do
   end
 
   defp handle_response({:error, exception}) do
-    Logger.error("LLM request failed: #{Exception.message(exception)} (#{inspect(exception)})")
+    Logger.error(
+      "LLM request failed: #{Exception.message(exception)} (#{inspect(exception)})"
+    )
+
     {:error, "LLM request failed: " <> Exception.message(exception)}
   end
 end

@@ -7,12 +7,12 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
     test "renders plain user and assistant text messages" do
       messages = [
         %{"role" => "user", "content" => [%{"type" => "text", "text" => "hi"}]},
-        %{"role" => "assistant", "content" => [%{"type" => "text", "text" => "hello!"}]}
+        %{"role" => "assistant", "content" => [%{"type" => "text", "text" => "hello!"}]},
       ]
 
       assert Transcript.build(messages) == [
                %{kind: :text, role: "user", text: "hi"},
-               %{kind: :text, role: "assistant", text: "hello!"}
+               %{kind: :text, role: "assistant", text: "hello!"},
              ]
     end
 
@@ -26,9 +26,9 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
               "type" => "tool_use",
               "id" => "tu_1",
               "name" => "list_files",
-              "input" => %{"path" => "."}
-            }
-          ]
+              "input" => %{"path" => "."},
+            },
+          ],
         },
         %{
           "role" => "user",
@@ -36,17 +36,17 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
             %{
               "type" => "tool_result",
               "tool_use_id" => "tu_1",
-              "content" => Jason.encode!(%{"path" => ".", "entries" => []})
-            }
-          ]
+              "content" => Jason.encode!(%{"path" => ".", "entries" => []}),
+            },
+          ],
         },
-        %{"role" => "assistant", "content" => [%{"type" => "text", "text" => "empty dir"}]}
+        %{"role" => "assistant", "content" => [%{"type" => "text", "text" => "empty dir"}]},
       ]
 
       assert [
                %{kind: :text, role: "user", text: "list files"},
                %{kind: :tool_call, id: "tu_1", name: "list_files", result: result},
-               %{kind: :text, role: "assistant", text: "empty dir"}
+               %{kind: :text, role: "assistant", text: "empty dir"},
              ] = Transcript.build(messages)
 
       assert result == {:ok, %{"path" => ".", "entries" => []}}
@@ -57,8 +57,8 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
         %{
           "role" => "assistant",
           "content" => [
-            %{"type" => "tool_use", "id" => "tu_1", "name" => "read_file", "input" => %{}}
-          ]
+            %{"type" => "tool_use", "id" => "tu_1", "name" => "read_file", "input" => %{}},
+          ],
         },
         %{
           "role" => "user",
@@ -67,10 +67,10 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
               "type" => "tool_result",
               "tool_use_id" => "tu_1",
               "content" => "\"nope.txt\" does not exist",
-              "is_error" => true
-            }
-          ]
-        }
+              "is_error" => true,
+            },
+          ],
+        },
       ]
 
       assert [%{kind: :tool_call, result: {:error, "\"nope.txt\" does not exist"}}] =
@@ -82,9 +82,9 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
         %{
           "role" => "assistant",
           "content" => [
-            %{"type" => "tool_use", "id" => "tu_1", "name" => "grep", "input" => %{}}
-          ]
-        }
+            %{"type" => "tool_use", "id" => "tu_1", "name" => "grep", "input" => %{}},
+          ],
+        },
       ]
 
       assert [%{kind: :tool_call, result: :pending}] = Transcript.build(messages)

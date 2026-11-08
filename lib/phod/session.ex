@@ -43,7 +43,7 @@ defmodule Phod.Session do
     status: :idle,
     edits: [],
     last_error: nil,
-    task_ref: nil
+    task_ref: nil,
   ]
 
   @idle_timeout :timer.minutes(30)
@@ -104,8 +104,11 @@ defmodule Phod.Session do
   @spec valid_session_name?(term()) :: boolean()
   def valid_session_name?(session_name) when is_binary(session_name) do
     case String.split(session_name, "/") do
-      [user, name] -> Regex.match?(@github_user, user) and Regex.match?(@worktree_name, name)
-      _ -> false
+      [user, name] ->
+        Regex.match?(@github_user, user) and Regex.match?(@worktree_name, name)
+
+      _ ->
+        false
     end
   end
 
@@ -182,7 +185,7 @@ defmodule Phod.Session do
         id: id,
         worktree_root: worktree_root,
         idle_timeout: idle_timeout,
-        log_path: Log.path(worktree_root)
+        log_path: Log.path(worktree_root),
       }
 
       reset_log(state)
@@ -194,7 +197,11 @@ defmodule Phod.Session do
   end
 
   @impl true
-  def handle_call({:send_message, _text, _sender}, _from, %__MODULE__{status: :running} = state) do
+  def handle_call(
+        {:send_message, _text, _sender},
+        _from,
+        %__MODULE__{status: :running} = state
+      ) do
     {:reply, {:error, :busy}, state, state.idle_timeout}
   end
 
@@ -241,8 +248,11 @@ defmodule Phod.Session do
 
     state =
       case result do
-        {:ok, _messages} -> %{state | status: :idle, task_ref: nil}
-        {:error, reason, _messages} -> %{state | status: :idle, task_ref: nil, last_error: reason}
+        {:ok, _messages} ->
+          %{state | status: :idle, task_ref: nil}
+
+        {:error, reason, _messages} ->
+          %{state | status: :idle, task_ref: nil, last_error: reason}
       end
 
     broadcast(state)
@@ -256,7 +266,7 @@ defmodule Phod.Session do
       state
       | status: :idle,
         task_ref: nil,
-        last_error: "agent run crashed: #{inspect(reason)}"
+        last_error: "agent run crashed: #{inspect(reason)}",
     }
 
     broadcast(state)
@@ -274,7 +284,7 @@ defmodule Phod.Session do
       status: state.status,
       messages: state.messages,
       edits: state.edits,
-      last_error: state.last_error
+      last_error: state.last_error,
     }
   end
 

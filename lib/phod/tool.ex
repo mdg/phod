@@ -26,8 +26,8 @@ defmodule Phod.Tool do
             %{
               required(:name) => String.t(),
               required(:description) => String.t(),
-              required(:input_schema) => map()
-            }
+              required(:input_schema) => map(),
+            },
           ]
   def specs do
     for {tool, true} <- @tools do

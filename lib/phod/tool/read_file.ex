@@ -23,7 +23,7 @@ defmodule Phod.Tool.ReadFile do
   @impl Tool.B
   def params() do
     [
-      Tool.Input.path()
+      Tool.Input.path(),
     ]
   end
 
@@ -34,7 +34,7 @@ defmodule Phod.Tool.ReadFile do
     |> map_ok(fn content ->
       %{
         path: path,
-        content: format_content(content)
+        content: format_content(content),
       }
     end)
     |> map_err(fn

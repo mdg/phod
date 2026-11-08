@@ -24,7 +24,8 @@ if System.get_env("PHX_SERVER") do
   config :phod, PhodWeb.Endpoint, server: true
 end
 
-config :phod, PhodWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4200"))]
+config :phod, PhodWeb.Endpoint,
+  http: [port: String.to_integer(System.get_env("PORT", "4200"))]
 
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
@@ -38,8 +39,8 @@ if config_env() == :dev do
         ~r"priv/gettext/.*\.po$"E,
         # Router, Controllers, LiveViews and LiveComponents
         ~r"lib/phod_web/router\.ex$"E,
-        ~r"lib/phod_web/(controllers|live|components)/.*\.(ex|heex)$"E
-      ]
+        ~r"lib/phod_web/(controllers|live|components)/.*\.(ex|heex)$"E,
+      ],
     ]
 end
 
@@ -84,7 +85,7 @@ if config_env() == :prod do
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
       # See the documentation on https://bandit.hexdocs.pm/Bandit.html#t:options/0
       # for details about using IPv6 vs IPv4 and loopback vs public addresses.
-      ip: {0, 0, 0, 0, 0, 0, 0, 0}
+      ip: {0, 0, 0, 0, 0, 0, 0, 0},
     ],
     secret_key_base: secret_key_base
 

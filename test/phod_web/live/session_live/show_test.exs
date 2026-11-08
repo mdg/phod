@@ -16,7 +16,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
     fn conn ->
       Req.Test.json(conn, %{
         "content" => [%{"type" => "text", "text" => text}],
-        "stop_reason" => stop_reason
+        "stop_reason" => stop_reason,
       })
     end
   end
@@ -42,7 +42,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
   test "renders a join prompt when the browser has no display name yet", %{
     conn: conn,
     user: owner,
-    tree: tree
+    tree: tree,
   } do
     Phod.Session.ensure_started(owner, tree)
     {:ok, view, _html} = live(conn, ~p"/sessions/#{owner}/#{tree}")
@@ -63,7 +63,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
     conn: conn,
     id: id,
     user: owner,
-    tree: tree
+    tree: tree,
   } do
     Req.Test.expect(Phod.Session.LlmStub, text_response("hello!"))
 
@@ -86,7 +86,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
     conn: conn,
     user: owner,
     tree: tree,
-    root: root
+    root: root,
   } do
     Phod.Tool.TestHelpers.write(root, "lib/foo.ex", "hi")
     Phod.Session.ensure_started(owner, tree)
@@ -105,7 +105,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
     id: id,
     user: owner,
     tree: tree,
-    root: root
+    root: root,
   } do
     Phod.Tool.TestHelpers.write(root, "new.txt", "hello")
 
@@ -116,10 +116,10 @@ defmodule PhodWeb.SessionLive.ShowTest do
             "type" => "tool_use",
             "id" => "tu_1",
             "name" => "read_file",
-            "input" => %{"path" => "new.txt"}
-          }
+            "input" => %{"path" => "new.txt"},
+          },
         ],
-        "stop_reason" => "tool_use"
+        "stop_reason" => "tool_use",
       })
     end)
 
@@ -150,7 +150,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
     conn: conn,
     id: id,
     user: owner,
-    tree: tree
+    tree: tree,
   } do
     diff = "--- /dev/null\n+++ b/new.txt\n@@ -0,0 +1 @@\n+hello\n"
 
@@ -161,10 +161,10 @@ defmodule PhodWeb.SessionLive.ShowTest do
             "type" => "tool_use",
             "id" => "tu_1",
             "name" => "patch",
-            "input" => %{"path" => "new.txt", "diff" => diff}
-          }
+            "input" => %{"path" => "new.txt", "diff" => diff},
+          },
         ],
-        "stop_reason" => "tool_use"
+        "stop_reason" => "tool_use",
       })
     end)
 
@@ -187,7 +187,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
     conn: conn,
     id: id,
     user: owner,
-    tree: tree
+    tree: tree,
   } do
     script = "IO.puts(\"hi from script\")"
 
@@ -198,10 +198,10 @@ defmodule PhodWeb.SessionLive.ShowTest do
             "type" => "tool_use",
             "id" => "tu_1",
             "name" => "elixir_script",
-            "input" => %{"script" => script}
-          }
+            "input" => %{"script" => script},
+          },
         ],
-        "stop_reason" => "tool_use"
+        "stop_reason" => "tool_use",
       })
     end)
 
@@ -229,7 +229,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
     conn: conn,
     user: owner,
     tree: tree,
-    root: root
+    root: root,
   } do
     Phod.Tool.TestHelpers.write(root, "tiny.png", @tiny_png)
     Phod.Session.ensure_started(owner, tree)
@@ -279,7 +279,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
     conn: conn,
     user: owner,
     tree: tree,
-    root: root
+    root: root,
   } do
     Phod.Session.ensure_started(owner, tree)
     {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
@@ -299,7 +299,7 @@ defmodule PhodWeb.SessionLive.ShowTest do
     conn: conn,
     id: id,
     user: owner,
-    tree: tree
+    tree: tree,
   } do
     Phod.Session.ensure_started(owner, tree)
 

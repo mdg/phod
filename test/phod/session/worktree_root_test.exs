@@ -92,7 +92,10 @@ defmodule Phod.Session.WorktreeRootTest do
 
     test "rejects a directory outside the base" do
       outside =
-        Path.join(System.tmp_dir!(), "wtcheck-outside-#{System.unique_integer([:positive])}")
+        Path.join(
+          System.tmp_dir!(),
+          "wtcheck-outside-#{System.unique_integer([:positive])}"
+        )
 
       File.mkdir_p!(outside)
       on_exit(fn -> File.rm_rf!(outside) end)

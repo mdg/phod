@@ -11,7 +11,7 @@ defmodule Phod.Session.LoopTest do
     fn conn ->
       Req.Test.json(conn, %{
         "content" => [%{"type" => "text", "text" => text}],
-        "stop_reason" => stop_reason
+        "stop_reason" => stop_reason,
       })
     end
   end
@@ -20,7 +20,7 @@ defmodule Phod.Session.LoopTest do
     fn conn ->
       Req.Test.json(conn, %{
         "content" => [%{"type" => "tool_use", "id" => id, "name" => name, "input" => input}],
-        "stop_reason" => "tool_use"
+        "stop_reason" => "tool_use",
       })
     end
   end
@@ -68,7 +68,7 @@ defmodule Phod.Session.LoopTest do
     assert [
              {:message_appended, %{"role" => "assistant"}},
              {:message_appended, %{"role" => "user", "content" => [tool_result]}},
-             {:message_appended, %{"role" => "assistant"}}
+             {:message_appended, %{"role" => "assistant"}},
            ] = events.()
 
     assert %{"type" => "tool_result", "tool_use_id" => "tu_1"} = tool_result
@@ -114,7 +114,9 @@ defmodule Phod.Session.LoopTest do
 
     assert {:ok, _result} = Loop.run(messages, root, on_event)
 
-    [_assistant, %{"content" => [tool_result]}, _final] = events.() |> Enum.map(&elem(&1, 1))
+    [_assistant, %{"content" => [tool_result]}, _final] =
+      events.() |> Enum.map(&elem(&1, 1))
+
     assert tool_result["is_error"] == true
   end
 
@@ -131,7 +133,9 @@ defmodule Phod.Session.LoopTest do
 
     assert {:ok, _result} = Loop.run(messages, root, on_event)
 
-    [_assistant, %{"content" => [tool_result]}, _final] = events.() |> Enum.map(&elem(&1, 1))
+    [_assistant, %{"content" => [tool_result]}, _final] =
+      events.() |> Enum.map(&elem(&1, 1))
+
     assert tool_result["is_error"] == true
     assert tool_result["content"] =~ "unknown tool"
   end

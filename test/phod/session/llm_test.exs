@@ -9,7 +9,7 @@ defmodule Phod.Session.LlmTest do
     Req.Test.stub(Phod.Session.LlmStub, fn conn ->
       Req.Test.json(conn, %{
         "content" => [%{"type" => "text", "text" => "hello back"}],
-        "stop_reason" => "end_turn"
+        "stop_reason" => "end_turn",
       })
     end)
 
@@ -21,9 +21,9 @@ defmodule Phod.Session.LlmTest do
     Req.Test.stub(Phod.Session.LlmStub, fn conn ->
       Req.Test.json(conn, %{
         "content" => [
-          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}}
+          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{}},
         ],
-        "stop_reason" => "tool_use"
+        "stop_reason" => "tool_use",
       })
     end)
 

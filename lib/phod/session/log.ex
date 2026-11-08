@@ -49,7 +49,9 @@ defmodule Phod.Session.Log do
         [entry("phod", now, [fence(text, "text")])]
 
       %{"type" => "tool_use", "name" => name, "input" => input} ->
-        [entry("phod", now, ["**tool call:** `", name, "`\n\n", fence(json(input), "json")])]
+        [
+          entry("phod", now, ["**tool call:** `", name, "`\n\n", fence(json(input), "json")])
+        ]
 
       _other ->
         []

@@ -21,7 +21,9 @@ defmodule Phod.ToolTest do
     assert Enum.sort(names) == ["grep", "list_files", "patch", "read_file", "rustc"]
 
     for tool <- tools do
-      assert %{"name" => name, "description" => description, "input_schema" => schema} = tool
+      assert %{"name" => name, "description" => description, "input_schema" => schema} =
+               tool
+
       assert is_binary(name)
       assert is_binary(description)
       assert %{"type" => "object"} = schema

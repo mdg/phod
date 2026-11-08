@@ -175,7 +175,9 @@ defmodule PhodWeb.SessionLive.Show do
   end
 
   defp refresh_tree(socket) do
-    tree = FileTree.refresh_expanded(socket.assigns.tree, socket.assigns.snapshot.worktree_root)
+    tree =
+      FileTree.refresh_expanded(socket.assigns.tree, socket.assigns.snapshot.worktree_root)
+
     assign(socket, :tree, tree)
   end
 

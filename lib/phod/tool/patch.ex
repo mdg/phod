@@ -48,7 +48,7 @@ defmodule Phod.Tool.Patch do
            path: path,
            created?: created?,
            applied_hunks: count_hunks(diff),
-           output: String.trim(out)
+           output: String.trim(out),
          }}
 
       {:error, %Rambo{status: status, out: out, err: err}} ->

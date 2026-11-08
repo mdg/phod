@@ -136,8 +136,27 @@ defmodule Phod.Session.LoopTest do
     assert tool_result["content"] =~ "unknown tool"
   end
 
+  # Asks for a tool on every request, except one that disables tools: that
+  # gets a plain summary, as the wrap-up request expects.
+  defp tool_until_wrap_up do
+    test_pid = self()
+
+    Req.Test.stub(Phod.Session.LlmStub, fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      body = Jason.decode!(raw)
+      send(test_pid, {:tool_choice, body["tool_choice"]})
+
+      respond =
+        if body["tool_choice"],
+          do: text_response("here is my summary"),
+          else: tool_use_response("tu_loop", "list_files", %{})
+
+      respond.(conn)
+    end)
+  end
+
   test "the max-rounds safety valve trips when the model never stops", %{root: root} do
-    Req.Test.stub(Phod.Session.LlmStub, tool_use_response("tu_1", "list_files", %{}))
+    tool_until_wrap_up()
 
     {on_event, _events} = collect_events()
     messages = [user_message("loop forever")]
@@ -145,6 +164,29 @@ defmodule Phod.Session.LoopTest do
     assert {:error, reason, messages_so_far} = Loop.run(messages, root, on_event, 3)
     assert reason =~ "max rounds (3)"
     assert length(messages_so_far) > length(messages)
+  end
+
+  test "at the limit, pending tool calls are answered as not run and the model is asked to summarize",
+       %{root: root} do
+    tool_until_wrap_up()
+
+    {on_event, _events} = collect_events()
+    messages = [user_message("loop forever")]
+
+    assert {:error, _reason, messages_so_far} = Loop.run(messages, root, on_event, 1)
+
+    # the last request had tools disabled; every earlier one had them enabled
+    assert_received {:tool_choice, nil}
+    assert_received {:tool_choice, %{"type" => "none"}}
+
+    [summary, wrap_up | _] = Enum.reverse(messages_so_far)
+    assert summary == %{"role" => "assistant", "content" => [%{"type" => "text", "text" => "here is my summary"}]}
+
+    assert %{"role" => "user", "content" => blocks} = wrap_up
+    assert [%{"type" => "tool_result", "is_error" => true, "content" => not_run} | rest] = blocks
+    assert not_run =~ "not run"
+    assert [%{"type" => "text", "text" => text}] = rest
+    assert text =~ "Summarize"
   end
 
   test "an LLM error mid-loop preserves the messages accumulated so far", %{root: root} do

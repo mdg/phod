@@ -18,7 +18,9 @@ defmodule Phod.Tool.Grep do
   def description,
     do: """
     Search file contents across the worktree with one or more regular \
-    expressions (Rust regex syntax; runs `ripgrep` internally). Provide a \
+    expressions (Rust regex syntax; runs `ripgrep` internally). Patterns are \
+    regular expressions, so escape special characters such as ( ) [ ] { } . * + \
+    ? | ^ $ and backslash with a backslash to match them literally. Provide a \
     list of one or more patterns - matches are the union of all given \
     patterns. Returns matching paths, line numbers, and line texts. Use this \
     to find where code lives before editing it. Paths in results are \

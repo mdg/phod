@@ -101,4 +101,23 @@ defmodule Phod.Session.LlmTest do
     assert instructions["cache_control"] == %{"type" => "ephemeral"}
     refute Map.has_key?(static, "cache_control")
   end
+
+  test "tool_choice: :none disables tool calls but keeps the tools in the request" do
+    test_pid = self()
+
+    Req.Test.stub(Phod.Session.LlmStub, fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      send(test_pid, {:body, Jason.decode!(raw)})
+      Req.Test.json(conn, %{"content" => [%{"type" => "text", "text" => "ok"}], "stop_reason" => "end_turn"})
+    end)
+
+    assert {:ok, _} = Llm.complete(@messages, nil, nil, tool_choice: :none)
+    assert_received {:body, body}
+    assert body["tool_choice"] == %{"type" => "none"}
+    assert is_list(body["tools"]) and body["tools"] != []
+
+    assert {:ok, _} = Llm.complete(@messages)
+    assert_received {:body, body}
+    refute Map.has_key?(body, "tool_choice")
+  end
 end

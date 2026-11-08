@@ -14,10 +14,13 @@ defmodule Phod.Session.Llm do
   Every path you pass to a tool is relative to the worktree root; you cannot \
   read or write anything outside it. Search with focus: make a few targeted \
   searches rather than surveying the whole project. Once you have enough to \
-  act, make the change, then verify each edit by reading the file back. If the \
-  task is ambiguous or you can't finish it, stop searching and say what you \
-  found and what you propose instead. Each request has a limited number of tool \
-  rounds, so don't spend them on searches you don't need. \
+  act, make the change, then verify each edit by reading the file back. \
+  If something the request names isn't in the code, don't keep searching for it. \
+  After two or three searches, stop and report what you found, the closest match, \
+  and what you propose. Never repeat a search that returned nothing; change the \
+  angle or stop. If the task is ambiguous or you can't finish it, stop searching \
+  and say what you found and what you propose instead. Each request has a limited \
+  number of tool rounds, so don't spend them on searches you don't need. \
   Do not try to execute the generated code. \
   """
 
@@ -32,11 +35,13 @@ defmodule Phod.Session.Llm do
   Calls the Messages API. `instructions` is the project's `AGENTS.md` text, or
   `nil` when the worktree has none. It goes in its own system block, marked
   for prompt caching, so repeated rounds of a run don't re-bill it. `tools`
-  defaults to `Phod.Tool.anthropic_tools/0`.
+  defaults to `Phod.Tool.anthropic_tools/0`. `tool_choice: :none` keeps the
+  tools in the request, which the conversation needs, but stops the model
+  calling them.
   """
-  @spec complete([message()], String.t() | nil, [map()] | nil) ::
+  @spec complete([message()], String.t() | nil, [map()] | nil, keyword()) ::
           {:ok, %{content: [block()], stop_reason: String.t() | nil}} | {:error, String.t()}
-  def complete(messages, instructions \\ nil, tools \\ nil) do
+  def complete(messages, instructions \\ nil, tools \\ nil, opts \\ []) do
     cfg = config()
 
     if cfg[:api_key] in [nil, ""] do
@@ -50,6 +55,7 @@ defmodule Phod.Session.Llm do
         "max_tokens" => cfg[:max_tokens],
         "stream" => false
       }
+      |> with_tool_choice(Keyword.get(opts, :tool_choice))
 
       cfg
       |> client()
@@ -70,6 +76,9 @@ defmodule Phod.Session.Llm do
   end
 
   defp text_block(text), do: %{"type" => "text", "text" => text}
+
+  defp with_tool_choice(body, :none), do: Map.put(body, "tool_choice", %{"type" => "none"})
+  defp with_tool_choice(body, nil), do: body
 
   defp client(cfg) do
     Req.new([base_url: cfg[:base_url]] ++ cfg[:req_options])

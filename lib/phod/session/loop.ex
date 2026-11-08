@@ -16,6 +16,11 @@ defmodule Phod.Session.Loop do
 
   @default_max_rounds 25
 
+  @not_run_reason "not run: the tool round limit for this request has been reached"
+  @wrap_up "You have used every tool round for this request, so no more tool calls " <>
+             "will run. Summarize what you found, what you changed if anything, and " <>
+             "what you propose to do next."
+
   @doc """
   Runs the loop. `worktrees` is the session's `[{name, root}]`, primary first;
   a single root path is accepted as one unnamed worktree. `max_rounds` caps the
@@ -69,9 +74,35 @@ defmodule Phod.Session.Loop do
     end
   end
 
-  defp continue_with_tools(messages, _ctx, _blocks, remaining, total)
+  # Out of rounds: the requested tool calls are answered as not run, so the
+  # conversation stays valid, and one more request (with tools disabled) asks
+  # the model to report what it found. The run still ends with the error.
+  defp continue_with_tools(messages, ctx, blocks, remaining, total)
        when remaining <= 0 do
-    {:error, "tool loop exceeded max rounds (#{total})", messages}
+    reason = "tool loop exceeded max rounds (#{total})"
+
+    not_run =
+      blocks
+      |> Enum.filter(&(&1["type"] == "tool_use"))
+      |> Enum.map(&tool_result_block(&1["id"], {:error, @not_run_reason}))
+
+    wrap_up_msg = %{
+      "role" => "user",
+      "content" => not_run ++ [%{"type" => "text", "text" => @wrap_up}]
+    }
+
+    messages = messages ++ [wrap_up_msg]
+    ctx.on_event.({:message_appended, wrap_up_msg})
+
+    case Llm.complete(messages, ctx.instructions, ctx.tools, tool_choice: :none) do
+      {:ok, %{content: summary}} ->
+        summary_msg = %{"role" => "assistant", "content" => summary}
+        ctx.on_event.({:message_appended, summary_msg})
+        {:error, reason, messages ++ [summary_msg]}
+
+      {:error, _llm_reason} ->
+        {:error, reason, messages}
+    end
   end
 
   defp continue_with_tools(messages, ctx, blocks, remaining, total) do

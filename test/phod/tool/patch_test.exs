@@ -48,4 +48,35 @@ defmodule Phod.Tool.PatchTest do
   test "rejects a path that escapes the worktree", %{root: root} do
     assert {:error, _} = Tool.run("patch", root, %{"path" => "../escape.txt", "diff" => @diff})
   end
+
+  describe "diff format" do
+    setup %{root: root} do
+      write(root, "notes.txt", "one\ntwo\nthree\n")
+      :ok
+    end
+
+    test "rejects the *** envelope and changes nothing", %{root: root} do
+      diff = "*** Begin Patch\n*** Update File: notes.txt\n@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n*** End Patch\n"
+
+      assert {:error, msg} = Tool.run("patch", root, %{"path" => "notes.txt", "diff" => diff})
+      assert msg =~ "not a unified diff"
+      assert msg =~ "*** End Patch"
+      assert File.read!(Path.join(root, "notes.txt")) == "one\ntwo\nthree\n"
+    end
+
+    test "rejects a bare @@ hunk header and changes nothing", %{root: root} do
+      diff = "--- a/notes.txt\n+++ b/notes.txt\n@@\n one\n-two\n+TWO\n three\n"
+
+      assert {:error, msg} = Tool.run("patch", root, %{"path" => "notes.txt", "diff" => diff})
+      assert msg =~ "a hunk header must give line numbers"
+      assert File.read!(Path.join(root, "notes.txt")) == "one\ntwo\nthree\n"
+    end
+
+    test "the example in the description applies", %{root: root} do
+      diff = "--- a/notes.txt\n+++ b/notes.txt\n@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n"
+
+      assert {:ok, %{applied_hunks: 1}} = Tool.run("patch", root, %{"path" => "notes.txt", "diff" => diff})
+      assert File.read!(Path.join(root, "notes.txt")) == "one\nTWO\nthree\n"
+    end
+  end
 end

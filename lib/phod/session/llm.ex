@@ -21,7 +21,6 @@ defmodule Phod.Session.Llm do
   angle or stop. If the task is ambiguous or you can't finish it, stop searching \
   and say what you found and what you propose instead. Each request has a limited \
   number of tool rounds, so don't spend them on searches you don't need. \
-  Do not try to execute the generated code. \
   """
 
   @doc "The static system prompt sent with every request."

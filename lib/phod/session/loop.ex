@@ -1,7 +1,7 @@
 defmodule Phod.Session.Loop do
   @moduledoc """
   The agent's tool-calling loop: call the LLM, execute any requested tools
-  against the session's worktrees, feed results back, and repeat until the
+  against the session's worktree, feed results back, and repeat until the
   model stops asking for tools (or the round safety valve trips).
 
   Takes no GenServer/Task dependency, so it can be driven directly in
@@ -25,38 +25,26 @@ defmodule Phod.Session.Loop do
              "what you propose to do next."
 
   @doc """
-  Runs the loop. `worktrees` is the session's `[{name, root}]`, primary first;
-  a single root path is accepted as one unnamed worktree. `max_rounds` caps the
-  tool rounds in this run; by default it is the `:max_tool_rounds` config
-  value (25 when unset).
+  Runs the loop against the worktree at `root`. `max_rounds` caps the tool
+  rounds in this run; by default it is the `:max_tool_rounds` config value
+  (25 when unset).
   """
-  @spec run(
-          [map()],
-          [{String.t(), String.t()}] | String.t(),
-          on_event(),
-          pos_integer() | nil
-        ) ::
+  @spec run([map()], String.t(), on_event(), pos_integer() | nil) ::
           {:ok, [map()]} | {:error, String.t(), [map()]}
-  def run(messages, worktrees, on_event, max_rounds \\ nil) do
+  def run(messages, root, on_event, max_rounds \\ nil) do
     max_rounds =
       max_rounds || Application.get_env(:phod, :max_tool_rounds, @default_max_rounds)
 
-    worktrees = normalize_worktrees(worktrees)
-    {_primary, primary_root} = hd(worktrees)
-
     ctx = %{
-      worktrees: worktrees,
+      root: root,
       on_event: on_event,
       # read per run, so edits to AGENTS.md apply from the next message on
-      instructions: read_instructions(primary_root),
-      tools: Tool.anthropic_tools(Enum.map(worktrees, &elem(&1, 0))),
+      instructions: read_instructions(root),
+      tools: Tool.anthropic_tools(),
     }
 
     step(messages, ctx, max_rounds, max_rounds)
   end
-
-  defp normalize_worktrees(root) when is_binary(root), do: [{"default", root}]
-  defp normalize_worktrees(worktrees) when is_list(worktrees), do: worktrees
 
   # A missing file means no instructions.
   defp read_instructions(root) do
@@ -136,7 +124,7 @@ defmodule Phod.Session.Loop do
     input = Map.get(block, "input", %{})
 
     if name do
-      result = run_tool(name, input, ctx.worktrees)
+      result = run_tool(name, input, ctx.root)
       record_edit(name, input, result, ctx)
       tool_result_block(id, result)
     else
@@ -146,12 +134,12 @@ defmodule Phod.Session.Loop do
 
   # Every tool call needs a goal: one line saying what the call is for. A
   # missing or blank goal is an error the model sees, so it supplies one.
-  defp run_tool(name, input, worktrees) do
+  defp run_tool(name, input, root) do
     case Map.get(input, "goal") do
       goal when is_binary(goal) and goal != "" ->
         if String.trim(goal) == "",
           do: {:error, @goal_error},
-          else: Tool.run(name, worktrees, input)
+          else: Tool.run(name, root, input)
 
       _missing ->
         {:error, @goal_error}
@@ -166,13 +154,10 @@ defmodule Phod.Session.Loop do
     %{"type" => "tool_result", "tool_use_id" => id, "content" => reason, "is_error" => true}
   end
 
-  defp record_edit("patch", input, {:ok, payload}, ctx) do
-    {:ok, {worktree, _root}} = Tool.select_worktree(ctx.worktrees, input)
-
+  defp record_edit("patch", _input, {:ok, payload}, ctx) do
     ctx.on_event.(
       {:edit_recorded,
        %{
-         worktree: worktree,
          path: payload.path,
          applied_hunks: payload.applied_hunks,
          created?: payload.created?,

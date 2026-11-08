@@ -53,7 +53,7 @@ defmodule Phod.Tool.SandboxTest do
   end
 
   test "the repo's .git stays hidden from the sandbox when the root is writable", %{
-    root: root
+    root: root,
   } do
     write(root, ".git/HEAD", "ref: refs/heads/main\n")
 

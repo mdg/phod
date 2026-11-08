@@ -29,7 +29,7 @@ defmodule Phod.Session.LoopLimitTest do
             "type" => "tool_use",
             "id" => "tu",
             "name" => "list_files",
-            "input" => %{"goal" => "test goal"}
+            "input" => %{"goal" => "test goal"},
           },
         ],
         "stop_reason" => "tool_use",

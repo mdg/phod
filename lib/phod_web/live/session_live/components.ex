@@ -186,7 +186,7 @@ defmodule PhodWeb.SessionLive.Components do
       @item.role == "user" && "bg-base-200 ml-auto",
       @item.role == "assistant" && "bg-base-100"
     ]}>
-      <p class="text-xs opacity-50">{@item.role}</p>
+      <p class="text-xs opacity-50">{@item.label}</p>
       <p class="whitespace-pre-wrap">{@item.text}</p>
     </div>
     """

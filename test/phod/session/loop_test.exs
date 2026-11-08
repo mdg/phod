@@ -272,7 +272,7 @@ defmodule Phod.Session.LoopTest do
             "type" => "tool_use",
             "id" => "tu_1",
             "name" => "list_files",
-            "input" => %{"goal" => "test goal"}
+            "input" => %{"goal" => "test goal"},
           },
         ],
         "stop_reason" => "tool_use",
@@ -296,70 +296,6 @@ defmodule Phod.Session.LoopTest do
     assert round2 =~ "rule for all rounds"
   end
 
-  test "a tool call acts on the worktree it names, and edits report which one", %{
-    root: root,
-  } do
-    second =
-      Path.join(Path.dirname(root), "loop-second-#{System.unique_integer([:positive])}")
-
-    File.mkdir_p!(second)
-    on_exit(fn -> File.rm_rf!(second) end)
-    write(second, "b.txt", "in second\n")
-    worktrees = [{"u/first", root}, {"u/second", second}]
-    test_pid = self()
-
-    diff = "--- /dev/null\n+++ b/new.txt\n@@ -0,0 +1 @@\n+hello\n"
-
-    Req.Test.expect(Phod.Session.LlmStub, fn conn ->
-      send(test_pid, :first_round)
-
-      Req.Test.json(conn, %{
-        "content" => [
-          %{
-            "type" => "tool_use",
-            "id" => "tu_read",
-            "name" => "read_files",
-            "input" => %{
-              "goal" => "test goal",
-              "paths" => ["b.txt"],
-              "worktree" => "u/second"
-            },
-          },
-          %{
-            "type" => "tool_use",
-            "id" => "tu_patch",
-            "name" => "patch",
-            "input" => %{
-              "goal" => "test goal",
-              "path" => "new.txt",
-              "diff" => diff,
-              "worktree" => "u/second"
-            },
-          },
-        ],
-        "stop_reason" => "tool_use",
-      })
-    end)
-
-    Req.Test.expect(Phod.Session.LlmStub, text_response("done"))
-
-    {on_event, events} = collect_events()
-    assert {:ok, messages} = Loop.run([user_message("go")], worktrees, on_event)
-
-    assert File.read!(Path.join(second, "new.txt")) == "hello\n"
-    refute File.exists?(Path.join(root, "new.txt"))
-
-    tool_results =
-      for %{"content" => blocks} <- messages,
-          %{"type" => "tool_result"} = b <- blocks,
-          do: b
-
-    assert Enum.any?(tool_results, &(&1["content"] =~ "in second"))
-
-    assert [%{worktree: "u/second", path: "new.txt"}] =
-             for({:edit_recorded, edit} <- events.(), do: edit)
-  end
-
   test "a tool call without a goal is an error, and the tool does not run", %{root: root} do
     write(root, "keep.txt", "keep me\n")
 
@@ -372,7 +308,7 @@ defmodule Phod.Session.LoopTest do
               "type" => "tool_use",
               "id" => "tu_1",
               "name" => "rm",
-              "input" => %{"paths" => ["keep.txt"]}
+              "input" => %{"paths" => ["keep.txt"]},
             },
           ],
           "stop_reason" => "tool_use",

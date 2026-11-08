@@ -10,7 +10,7 @@ defmodule PhodWeb.SessionLive.Transcript do
   """
 
   @type item ::
-          %{kind: :text, role: String.t(), text: String.t()}
+          %{kind: :text, role: String.t(), label: String.t(), text: String.t()}
           | %{
               kind: :tool_call,
               id: String.t(),
@@ -30,11 +30,18 @@ defmodule PhodWeb.SessionLive.Transcript do
   User messages are only rendered when every block is plain text; a user
   message carrying `tool_result` blocks is the loop's internal hand-back to
   the LLM and is already represented via the pairing above.
+
+  `senders` maps a user message's index in `messages` to the sender's display
+  name, which labels that message. LLM-side items (assistant text and goals)
+  are labelled with `session_id`.
   """
-  @spec build([map()]) :: [item()]
-  def build(messages) do
-    results = index_tool_results(messages)
-    Enum.flat_map(messages, &message_items(&1, results))
+  @spec build([map()], %{non_neg_integer() => String.t()}, String.t()) :: [item()]
+  def build(messages, senders, session_id) do
+    ctx = %{results: index_tool_results(messages), senders: senders, session_id: session_id}
+
+    messages
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {message, idx} -> message_items(message, idx, ctx) end)
   end
 
   @doc """
@@ -75,26 +82,28 @@ defmodule PhodWeb.SessionLive.Transcript do
   end
 
   # A tool call's goal is shown as a Phod message just above the call.
-  defp goal_items(%{"goal" => goal}) when is_binary(goal) do
-    if String.trim(goal) == "", do: [], else: [%{kind: :text, role: "phod", text: goal}]
+  defp goal_items(%{"goal" => goal}, ctx) when is_binary(goal) do
+    if String.trim(goal) == "",
+      do: [],
+      else: [%{kind: :text, role: "phod", label: ctx.session_id, text: goal}]
   end
 
-  defp goal_items(_input), do: []
+  defp goal_items(_input, _ctx), do: []
 
-  defp message_items(%{"role" => "assistant", "content" => blocks}, results) do
+  defp message_items(%{"role" => "assistant", "content" => blocks}, _idx, ctx) do
     Enum.flat_map(blocks, fn
       %{"type" => "text", "text" => text} ->
-        [%{kind: :text, role: "assistant", text: text}]
+        [%{kind: :text, role: "assistant", label: ctx.session_id, text: text}]
 
       %{"type" => "tool_use", "id" => id, "name" => name, "input" => input} ->
-        goal_items(input) ++
+        goal_items(input, ctx) ++
           [
             %{
               kind: :tool_call,
               id: id,
               name: name,
               input: input,
-              result: Map.get(results, id, :pending),
+              result: Map.get(ctx.results, id, :pending),
             },
           ]
 
@@ -103,13 +112,17 @@ defmodule PhodWeb.SessionLive.Transcript do
     end)
   end
 
-  defp message_items(%{"role" => "user", "content" => blocks}, _results) do
+  defp message_items(%{"role" => "user", "content" => blocks}, idx, ctx) do
+    label = Map.get(ctx.senders, idx, "user")
+
     if Enum.all?(blocks, &(&1["type"] == "text")) do
-      Enum.map(blocks, fn %{"text" => text} -> %{kind: :text, role: "user", text: text} end)
+      Enum.map(blocks, fn %{"text" => text} ->
+        %{kind: :text, role: "user", label: label, text: text}
+      end)
     else
       []
     end
   end
 
-  defp message_items(_other, _results), do: []
+  defp message_items(_other, _idx, _ctx), do: []
 end

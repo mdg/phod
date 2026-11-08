@@ -71,7 +71,7 @@ defmodule PhodWeb.SessionLive.Show do
       selected_image: nil,
       selected_binary?: false,
       selected_symlink?: false,
-      transcript: Transcript.build(snapshot.messages),
+      transcript: Transcript.build(snapshot.messages, snapshot.senders, snapshot.id),
       form: to_form(%{"text" => ""}, as: :message)
     )
   end
@@ -154,7 +154,7 @@ defmodule PhodWeb.SessionLive.Show do
         snapshot: snapshot,
         edits_marker: marker,
         recent_edit_paths: recent_edit_paths,
-        transcript: Transcript.build(snapshot.messages)
+        transcript: Transcript.build(snapshot.messages, snapshot.senders, snapshot.id)
       )
       |> refresh_tree_if_changed(prev_edits, snapshot.edits)
       |> refresh_selected_if_edited(recent_edit_paths)

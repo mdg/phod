@@ -3,17 +3,31 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
 
   alias PhodWeb.SessionLive.Transcript
 
-  describe "build/1" do
+  @session "octocat/tree"
+
+  describe "build/3" do
     test "renders plain user and assistant text messages" do
       messages = [
         %{"role" => "user", "content" => [%{"type" => "text", "text" => "hi"}]},
         %{"role" => "assistant", "content" => [%{"type" => "text", "text" => "hello!"}]},
       ]
 
-      assert Transcript.build(messages) == [
-               %{kind: :text, role: "user", text: "hi"},
-               %{kind: :text, role: "assistant", text: "hello!"},
+      assert Transcript.build(messages, %{}, @session) == [
+               %{kind: :text, role: "user", label: "user", text: "hi"},
+               %{kind: :text, role: "assistant", label: @session, text: "hello!"},
              ]
+    end
+
+    test "labels user messages with their sender's name" do
+      messages = [
+        %{"role" => "user", "content" => [%{"type" => "text", "text" => "hi"}]},
+        %{"role" => "user", "content" => [%{"type" => "text", "text" => "yo"}]},
+      ]
+
+      assert [
+               %{kind: :text, role: "user", label: "Ada", text: "hi"},
+               %{kind: :text, role: "user", label: "Grace", text: "yo"},
+             ] = Transcript.build(messages, %{0 => "Ada", 1 => "Grace"}, @session)
     end
 
     test "pairs a tool_use block with its tool_result and decodes success JSON" do
@@ -44,10 +58,10 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
       ]
 
       assert [
-               %{kind: :text, role: "user", text: "list files"},
+               %{kind: :text, role: "user", label: "user", text: "list files"},
                %{kind: :tool_call, id: "tu_1", name: "list_files", result: result},
-               %{kind: :text, role: "assistant", text: "empty dir"},
-             ] = Transcript.build(messages)
+               %{kind: :text, role: "assistant", label: @session, text: "empty dir"},
+             ] = Transcript.build(messages, %{}, @session)
 
       assert result == {:ok, %{"path" => ".", "entries" => []}}
     end
@@ -74,7 +88,7 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
       ]
 
       assert [%{kind: :tool_call, result: {:error, "\"nope.txt\" does not exist"}}] =
-               Transcript.build(messages)
+               Transcript.build(messages, %{}, @session)
     end
 
     test "a tool_use block with no matching tool_result yet is :pending" do
@@ -87,7 +101,8 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
         },
       ]
 
-      assert [%{kind: :tool_call, result: :pending}] = Transcript.build(messages)
+      assert [%{kind: :tool_call, result: :pending}] =
+               Transcript.build(messages, %{}, @session)
     end
   end
 
@@ -130,9 +145,9 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
       ]
 
       assert [
-               %{kind: :text, role: "phod", text: "find the route"},
+               %{kind: :text, role: "phod", label: @session, text: "find the route"},
                %{kind: :tool_call, id: "tu_1", name: "grep"},
-             ] = Transcript.build(messages)
+             ] = Transcript.build(messages, %{}, @session)
     end
 
     test "a tool call without a goal shows only the call" do
@@ -140,12 +155,12 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
         %{
           "role" => "assistant",
           "content" => [
-            %{"type" => "tool_use", "id" => "tu_1", "name" => "grep", "input" => %{}}
+            %{"type" => "tool_use", "id" => "tu_1", "name" => "grep", "input" => %{}},
           ],
         },
       ]
 
-      assert [%{kind: :tool_call}] = Transcript.build(messages)
+      assert [%{kind: :tool_call}] = Transcript.build(messages, %{}, @session)
     end
   end
 end

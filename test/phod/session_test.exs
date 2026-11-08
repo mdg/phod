@@ -150,7 +150,12 @@ defmodule Phod.SessionTest do
     Req.Test.expect(Phod.Session.LlmStub, fn conn ->
       Req.Test.json(conn, %{
         "content" => [
-          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{"goal" => "test goal"}},
+          %{
+            "type" => "tool_use",
+            "id" => "tu_1",
+            "name" => "list_files",
+            "input" => %{"goal" => "test goal"}
+          },
         ],
         "stop_reason" => "tool_use",
       })

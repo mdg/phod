@@ -44,12 +44,23 @@ defmodule Phod.Tool.Sandbox do
     task = Task.async(fn -> Rambo.run("bwrap", args, log: false) end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
-      {:ok, {:ok, %Rambo{} = result}} -> {:ok, output(result)}
-      {:ok, {:error, %Rambo{} = result}} -> {:ok, output(result)}
-      {:ok, {:error, reason}} when is_binary(reason) -> {:error, "could not run command: #{reason}"}
-      {:ok, {:error, _reason}} -> {:error, "could not run command"}
-      nil -> {:error, "timed out after #{timeout}ms"}
-      {:exit, _reason} -> {:error, "could not run command"}
+      {:ok, {:ok, %Rambo{} = result}} ->
+        {:ok, output(result)}
+
+      {:ok, {:error, %Rambo{} = result}} ->
+        {:ok, output(result)}
+
+      {:ok, {:error, reason}} when is_binary(reason) ->
+        {:error, "could not run command: #{reason}"}
+
+      {:ok, {:error, _reason}} ->
+        {:error, "could not run command"}
+
+      nil ->
+        {:error, "timed out after #{timeout}ms"}
+
+      {:exit, _reason} ->
+        {:error, "could not run command"}
     end
   end
 
@@ -80,7 +91,7 @@ defmodule Phod.Tool.Sandbox do
       read_only_root(),
       isolation(extra_path),
       ["--chdir", cwd, "--"],
-      argv
+      argv,
     ])
   end
 
@@ -124,7 +135,7 @@ defmodule Phod.Tool.Sandbox do
       "--clearenv",
       "--setenv",
       "PATH",
-      path
+      path,
     ]
   end
 

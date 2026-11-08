@@ -1,7 +1,6 @@
 defmodule Phod.Tool.ExecTest do
   use ExUnit.Case, async: true
 
-
   alias Phod.Tool
 
   setup {Phod.Tool.TestHelpers, :setup_worktree}
@@ -12,7 +11,8 @@ defmodule Phod.Tool.ExecTest do
   end
 
   test "a non-zero exit is a normal result, not an error", %{root: root} do
-    assert {:ok, %{exit_status: 3}} = Tool.run("exec", root, %{"cmd" => ["sh", "-c", "exit 3"]})
+    assert {:ok, %{exit_status: 3}} =
+             Tool.run("exec", root, %{"cmd" => ["sh", "-c", "exit 3"]})
   end
 
   test "stderr is returned separately", %{root: root} do
@@ -39,7 +39,7 @@ defmodule Phod.Tool.ExecTest do
     assert {:ok, %{exit_status: 0}} =
              Tool.run("exec", root, %{
                "cmd" => ["sh", "-c", "echo made > out.txt"],
-               "allow_writes" => true
+               "allow_writes" => true,
              })
 
     assert File.read!(Path.join(root, "out.txt")) == "made\n"
@@ -53,10 +53,14 @@ defmodule Phod.Tool.ExecTest do
   end
 
   test "a write outside the worktree does not reach the host", %{root: root} do
-    outside = Path.join(System.tmp_dir!(), "exec-outside-#{System.unique_integer([:positive])}")
+    outside =
+      Path.join(System.tmp_dir!(), "exec-outside-#{System.unique_integer([:positive])}")
+
     on_exit(fn -> File.rm(outside) end)
 
-    assert {:ok, _} = Tool.run("exec", root, %{"cmd" => ["sh", "-c", "echo x > #{outside}"]})
+    assert {:ok, _} =
+             Tool.run("exec", root, %{"cmd" => ["sh", "-c", "echo x > #{outside}"]})
+
     refute File.exists?(outside)
   end
 
@@ -69,7 +73,8 @@ defmodule Phod.Tool.ExecTest do
   end
 
   test "has no network: only the loopback interface exists", %{root: root} do
-    assert {:ok, %{stdout: stdout}} = Tool.run("exec", root, %{"cmd" => ["cat", "/proc/net/dev"]})
+    assert {:ok, %{stdout: stdout}} =
+             Tool.run("exec", root, %{"cmd" => ["cat", "/proc/net/dev"]})
 
     interfaces =
       ~r/^\s*([^:\s]+):/m

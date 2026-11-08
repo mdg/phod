@@ -32,10 +32,12 @@ defmodule Phod.Tool.Exec do
   @impl Tool.B
   def params do
     [
-      Tool.Input.strings(:cmd, "The program and its arguments, one string each.", required: true),
+      Tool.Input.strings(:cmd, "The program and its arguments, one string each.",
+        required: true
+      ),
       Tool.Input.bool(:allow_writes, "Let the command change files in the worktree.",
         default: false
-      )
+      ),
     ]
   end
 

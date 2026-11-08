@@ -29,9 +29,10 @@ defmodule Phod.Tool.Input.StringsTest do
 
     assert param.type == Strings
     assert param.required?
+
     assert Input.to_schema([param])["properties"]["cmd"] == %{
              "type" => "array",
-             "items" => %{"type" => "string"}
+             "items" => %{"type" => "string"},
            }
   end
 end

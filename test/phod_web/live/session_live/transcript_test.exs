@@ -123,15 +123,15 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
               "type" => "tool_use",
               "id" => "tu_1",
               "name" => "grep",
-              "input" => %{"goal" => "find the route", "patterns" => ["nfl"]}
-            }
-          ]
-        }
+              "input" => %{"goal" => "find the route", "patterns" => ["nfl"]},
+            },
+          ],
+        },
       ]
 
       assert [
                %{kind: :text, role: "phod", text: "find the route"},
-               %{kind: :tool_call, id: "tu_1", name: "grep"}
+               %{kind: :tool_call, id: "tu_1", name: "grep"},
              ] = Transcript.build(messages)
     end
 
@@ -139,8 +139,10 @@ defmodule PhodWeb.SessionLive.TranscriptTest do
       messages = [
         %{
           "role" => "assistant",
-          "content" => [%{"type" => "tool_use", "id" => "tu_1", "name" => "grep", "input" => %{}}]
-        }
+          "content" => [
+            %{"type" => "tool_use", "id" => "tu_1", "name" => "grep", "input" => %{}}
+          ],
+        },
       ]
 
       assert [%{kind: :tool_call}] = Transcript.build(messages)

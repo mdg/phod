@@ -25,7 +25,12 @@ defmodule Phod.Session.LoopLimitTest do
     Req.Test.stub(Phod.Session.LlmStub, fn conn ->
       Req.Test.json(conn, %{
         "content" => [
-          %{"type" => "tool_use", "id" => "tu", "name" => "list_files", "input" => %{"goal" => "test goal"}},
+          %{
+            "type" => "tool_use",
+            "id" => "tu",
+            "name" => "list_files",
+            "input" => %{"goal" => "test goal"}
+          },
         ],
         "stop_reason" => "tool_use",
       })

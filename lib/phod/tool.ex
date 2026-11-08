@@ -43,6 +43,7 @@ defmodule Phod.Tool do
         [goal_param() | tool.params()]
         |> Input.to_schema()
         |> with_worktree_property(worktree_names)
+
       %{name: tool.name(), description: tool.description(), input_schema: schema}
     end
   end

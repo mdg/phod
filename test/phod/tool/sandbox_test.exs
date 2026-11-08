@@ -8,7 +8,8 @@ defmodule Phod.Tool.SandboxTest do
   setup {Phod.Tool.TestHelpers, :setup_worktree}
 
   defp sh(root, script, opts \\ []) do
-    Sandbox.run(["/bin/sh", "-c", script],
+    Sandbox.run(
+      ["/bin/sh", "-c", script],
       [root: root, cwd: root, timeout_ms: 10_000] ++ opts
     )
   end
@@ -34,7 +35,9 @@ defmodule Phod.Tool.SandboxTest do
   test "a .git file cannot be changed, even with allow_writes", %{root: root} do
     write(root, ".git", "gitdir: /x\n")
 
-    assert {:ok, %{exit_status: status}} = sh(root, "echo hacked > .git", allow_writes: true)
+    assert {:ok, %{exit_status: status}} =
+             sh(root, "echo hacked > .git", allow_writes: true)
+
     assert status != 0
     assert File.read!(Path.join(root, ".git")) == "gitdir: /x\n"
   end
@@ -49,15 +52,20 @@ defmodule Phod.Tool.SandboxTest do
     assert status != 0
   end
 
-  test "the repo's .git stays hidden from the sandbox when the root is writable", %{root: root} do
+  test "the repo's .git stays hidden from the sandbox when the root is writable", %{
+    root: root
+  } do
     write(root, ".git/HEAD", "ref: refs/heads/main\n")
 
-    assert {:ok, %{stdout: stdout}} = sh(root, "cat .git/HEAD 2>/dev/null; echo done", allow_writes: true)
+    assert {:ok, %{stdout: stdout}} =
+             sh(root, "cat .git/HEAD 2>/dev/null; echo done", allow_writes: true)
+
     assert stdout == "done\n"
   end
 
   test "a write outside the root fails, rather than appearing to succeed", %{root: root} do
-    probe = Path.join(System.tmp_dir!(), "sandbox-probe-#{System.unique_integer([:positive])}")
+    probe =
+      Path.join(System.tmp_dir!(), "sandbox-probe-#{System.unique_integer([:positive])}")
 
     assert {:ok, %{exit_status: status, stderr: stderr}} =
              sh(root, "echo x > #{probe}", allow_writes: true)

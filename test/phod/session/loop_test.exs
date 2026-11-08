@@ -268,7 +268,12 @@ defmodule Phod.Session.LoopTest do
 
       Req.Test.json(conn, %{
         "content" => [
-          %{"type" => "tool_use", "id" => "tu_1", "name" => "list_files", "input" => %{"goal" => "test goal"}},
+          %{
+            "type" => "tool_use",
+            "id" => "tu_1",
+            "name" => "list_files",
+            "input" => %{"goal" => "test goal"}
+          },
         ],
         "stop_reason" => "tool_use",
       })
@@ -314,13 +319,22 @@ defmodule Phod.Session.LoopTest do
             "type" => "tool_use",
             "id" => "tu_read",
             "name" => "read_files",
-            "input" => %{"goal" => "test goal", "paths" => ["b.txt"], "worktree" => "u/second"},
+            "input" => %{
+              "goal" => "test goal",
+              "paths" => ["b.txt"],
+              "worktree" => "u/second"
+            },
           },
           %{
             "type" => "tool_use",
             "id" => "tu_patch",
             "name" => "patch",
-            "input" => %{"goal" => "test goal", "path" => "new.txt", "diff" => diff, "worktree" => "u/second"},
+            "input" => %{
+              "goal" => "test goal",
+              "path" => "new.txt",
+              "diff" => diff,
+              "worktree" => "u/second"
+            },
           },
         ],
         "stop_reason" => "tool_use",
@@ -354,9 +368,14 @@ defmodule Phod.Session.LoopTest do
       fn conn ->
         Req.Test.json(conn, %{
           "content" => [
-            %{"type" => "tool_use", "id" => "tu_1", "name" => "rm", "input" => %{"paths" => ["keep.txt"]}}
+            %{
+              "type" => "tool_use",
+              "id" => "tu_1",
+              "name" => "rm",
+              "input" => %{"paths" => ["keep.txt"]}
+            },
           ],
-          "stop_reason" => "tool_use"
+          "stop_reason" => "tool_use",
         })
       end
     )
@@ -366,7 +385,9 @@ defmodule Phod.Session.LoopTest do
     {on_event, events} = collect_events()
     assert {:ok, _} = Loop.run([user_message("remove it")], root, on_event)
 
-    [_assistant, %{"content" => [tool_result]}, _final] = events.() |> Enum.map(&elem(&1, 1))
+    [_assistant, %{"content" => [tool_result]}, _final] =
+      events.() |> Enum.map(&elem(&1, 1))
+
     assert tool_result["is_error"] == true
     assert tool_result["content"] =~ "goal is required"
     assert File.read!(Path.join(root, "keep.txt")) == "keep me\n"

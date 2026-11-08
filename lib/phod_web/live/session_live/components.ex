@@ -170,6 +170,13 @@ defmodule PhodWeb.SessionLive.Components do
           class="whitespace-pre-wrap bg-base-200 rounded p-2 font-mono text-xs"
           data-role="tool-call-diff"
         >{@item.input["diff"]}</pre>
+        <ul
+          :if={extra_patterns(@item) != []}
+          class="space-y-0.5 font-mono text-xs"
+          data-role="tool-call-patterns"
+        >
+          <li :for={pattern <- extra_patterns(@item)}><code>{pattern}</code></li>
+        </ul>
         <%= case @item.result do %>
           <% :pending -> %>
             <p class="italic opacity-60">running…</p>
@@ -293,6 +300,16 @@ defmodule PhodWeb.SessionLive.Components do
     """
   end
 
+  # A grep call's summary shows its first two patterns, then "..." if there
+  # are more; the rest are listed in the expanded view.
+  defp tool_summary(%{name: "grep", input: %{"patterns" => [_, _, _ | _] = patterns}}) do
+    Enum.take(patterns, 2) |> Enum.join(", ") |> Kernel.<>(", ...")
+  end
+
+  defp tool_summary(%{name: "grep", input: %{"patterns" => [_ | _] = patterns}}) do
+    Enum.join(patterns, ", ")
+  end
+
   defp tool_summary(%{input: input}) do
     cond do
       is_binary(input["path"]) -> input["path"]
@@ -301,6 +318,9 @@ defmodule PhodWeb.SessionLive.Components do
       true -> ""
     end
   end
+
+  defp extra_patterns(%{name: "grep", input: %{"patterns" => [_, _ | rest]}}), do: rest
+  defp extra_patterns(_item), do: []
 
   # -- File explorer pane ---------------------------------------------------
 

@@ -16,6 +16,7 @@ defmodule Phod.Tool do
     __MODULE__.ReadFiles => true,
     __MODULE__.Rm => true,
     __MODULE__.Rustc => true,
+    __MODULE__.WriteFile => true,
   }
 
   @names Map.new(@tools, fn {tool, _} -> {tool.name(), tool} end)

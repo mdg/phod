@@ -55,6 +55,10 @@ defmodule Phod.Session do
 
   @idle_timeout :timer.minutes(30)
 
+  # A session describes itself to its peers from this file in its worktree.
+  @description_file "DESCRIPTION.md"
+  @max_description_chars 500
+
   # Public API
 
   @doc """
@@ -276,6 +280,7 @@ defmodule Phod.Session do
   def init({id, worktree_root, opts}) do
     if File.dir?(worktree_root) do
       idle_timeout = Keyword.get(opts, :idle_timeout, @idle_timeout)
+      Connections.set_description(id, read_description(worktree_root))
 
       state = %__MODULE__{
         id: id,
@@ -473,9 +478,12 @@ defmodule Phod.Session do
     parent = self()
     worktree_root = state.worktree_root
 
+    peers = Connections.peers(state.id)
+
     opts = [
       mode: item.mode,
-      peers: Connections.peers(state.id),
+      peers: peers,
+      peer_info: Enum.map(peers, &{&1, Connections.description(&1)}),
       peer: peer_call(self(), state.id, item.from)
     ]
 
@@ -525,6 +533,21 @@ defmodule Phod.Session do
           {:ok, [{_name, root}]} -> {:ok, root}
           {:error, _reason} = error -> error
         end
+    end
+  end
+
+  # The session's description: the start of its DESCRIPTION.md, trimmed and
+  # capped. Read once when the session starts; `nil` if there is no file.
+  defp read_description(worktree_root) do
+    case File.read(Path.join(worktree_root, @description_file)) do
+      {:ok, text} ->
+        case text |> String.trim() |> String.slice(0, @max_description_chars) do
+          "" -> nil
+          description -> description
+        end
+
+      {:error, _reason} ->
+        nil
     end
   end
 

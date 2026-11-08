@@ -14,11 +14,12 @@ defmodule Phod.Session.PeerExchangeTest do
     %{a: a, b: b}
   end
 
-  defp fresh_session do
+  defp fresh_session(description \\ nil) do
     tree = "px-#{System.unique_integer([:positive])}"
     root = Session.worktree_root("tester", tree)
     File.mkdir_p!(root)
     on_exit(fn -> File.rm_rf!(root) end)
+    if description, do: File.write!(Path.join(root, "DESCRIPTION.md"), description)
     {:ok, pid} = Session.ensure_started("tester", tree)
     %{id: Session.session_id("tester", tree), root: root, pid: pid}
   end
@@ -157,5 +158,44 @@ defmodule Phod.Session.PeerExchangeTest do
     assert {:ok, [{id, root}]} = Session.worktrees(a.id)
     assert id == a.id
     assert root == a.root
+  end
+
+  describe "DESCRIPTION.md" do
+    test "a session's description is the start of its DESCRIPTION.md, capped" do
+      long = String.duplicate("x", 1_000)
+      s = fresh_session("  " <> long <> "  ")
+
+      assert String.length(Phod.Session.Connections.description(s.id)) == 500
+    end
+
+    test "a session with no DESCRIPTION.md has no description" do
+      s = fresh_session()
+      assert Phod.Session.Connections.description(s.id) == nil
+    end
+
+    test "a peer's description appears in the peer choices the model sees" do
+      b = fresh_session("Hosted game server. Owns the tables.")
+      c = fresh_session()
+      :ok = Session.connect(c.id, b.id, mode: :one_way)
+      on_exit(fn -> Session.disconnect(c.id, b.id) end)
+
+      test_pid = self()
+
+      Req.Test.stub(Phod.Session.LlmStub, fn conn ->
+        {:ok, raw, conn} = Plug.Conn.read_body(conn)
+        send(test_pid, {:tools, Jason.decode!(raw)["tools"]})
+        respond(conn, [%{"type" => "text", "text" => "ok"}], "end_turn")
+      end)
+
+      allow_llm([c])
+      assert :ok = Session.send_message(c.id, "hi", "Ada")
+
+      assert_receive {:tools, tools}, 2_000
+      send_spec = Enum.find(tools, &(&1["name"] == "send"))
+      peer = send_spec["input_schema"]["properties"]["peer"]
+
+      assert peer["enum"] == [b.id]
+      assert peer["description"] =~ "- #{b.id}: Hosted game server. Owns the tables."
+    end
   end
 end

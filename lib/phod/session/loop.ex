@@ -50,6 +50,8 @@ defmodule Phod.Session.Loop do
 
     * `:mode` — `:user` (default) or `:peer`
     * `:peers` — the session ids this session may send to
+    * `:peer_info` — `[{id, description | nil}]` for those peers, shown to the
+      model in the `peer` choices (default: the ids, with no descriptions)
     * `:peer` — `fn request -> result end` for peer work: `{:send, peer, prompt,
       want_reply}` → `{:ok, %{peer:, status:}}`; `{:reply, text}` → `{:ok, %{to:,
       status:}}`; `{:root, peer}` → `{:ok, root}`
@@ -70,13 +72,14 @@ defmodule Phod.Session.Loop do
   def run(messages, root, on_event, opts) do
     mode = Keyword.get(opts, :mode, :user)
     peers = Keyword.get(opts, :peers, [])
+    peer_info = Keyword.get(opts, :peer_info, Enum.map(peers, &{&1, nil}))
     user? = mode == :user
 
     tools =
       Tool.loop_tools(
-        send_to: if(user?, do: peers, else: []),
+        send_to: if(user?, do: peer_info, else: []),
         reply: mode == :peer,
-        peer_reads: if(user?, do: peers, else: [])
+        peer_reads: if(user?, do: peer_info, else: [])
       )
 
     ctx = %{

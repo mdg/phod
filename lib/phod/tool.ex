@@ -81,10 +81,10 @@ defmodule Phod.Tool do
   @doc """
   The tools offered for one agent run, in the shape the Messages API expects:
 
-    * `:send_to`: peer session ids. Non-empty offers `send`, with these as its
-      `peer` choices.
+    * `:send_to`: `[{peer id, description | nil}]`. Non-empty offers `send`,
+      with these as its `peer` choices.
     * `:reply`: offers `reply`.
-    * `:peer_reads`: peer session ids. Non-empty adds an optional `peer` to the
+    * `:peer_reads`: `[{peer id, description | nil}]`. Non-empty adds an optional `peer` to the
       read-only tools (see `peer_readable?/1`), with these as its choices.
   """
   @spec loop_tools(keyword()) :: [map()]
@@ -122,10 +122,26 @@ defmodule Phod.Tool do
 
   defp add_peer_choices(schema, []), do: schema
 
+  # `peers` is `[{id, description | nil}]`. The enum keeps the choices exact; the
+  # description lists what each peer is for.
   defp add_peer_choices(schema, peers) do
+    peers = Enum.map(peers, fn {id, description} -> {id, description}; id -> {id, nil} end)
     props = schema["properties"]
-    prop = Map.get(props, "peer", %{"type" => "string", "description" => "The peer session."})
-    Map.put(schema, "properties", Map.put(props, "peer", Map.put(prop, "enum", peers)))
+    existing = Map.get(props, "peer", %{})
+    base = Map.get(existing, "description", "The peer session.")
+
+    lines =
+      for {id, description} <- peers do
+        if description, do: "- #{id}: #{description}", else: "- #{id}"
+      end
+
+    prop = %{
+      "type" => "string",
+      "enum" => Enum.map(peers, &elem(&1, 0)),
+      "description" => Enum.join([base, "Peers:" | lines], "\n")
+    }
+
+    Map.put(schema, "properties", Map.put(props, "peer", prop))
   end
 
   defp fetch_tool(name) do

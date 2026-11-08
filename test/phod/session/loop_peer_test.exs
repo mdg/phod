@@ -133,6 +133,9 @@ defmodule Phod.Session.LoopPeerTest do
       {:send, "a/b", "please check", true} ->
         send(test_pid, :sent)
         {:ok, %{peer: "a/b", status: :started}}
+
+      {:describe, _peer} ->
+        {:ok, nil}
     end
 
     task =
@@ -167,7 +170,10 @@ defmodule Phod.Session.LoopPeerTest do
       respond_with(conn, [%{"type" => "text", "text" => "waiting"}], "end_turn")
     end)
 
-    peer = fn {:send, _, _, _} -> {:ok, %{peer: "a/b", status: :started}} end
+    peer = fn
+      {:send, _, _, _} -> {:ok, %{peer: "a/b", status: :started}}
+      {:describe, _} -> {:ok, nil}
+    end
     {on_event, _events} = collect_events()
 
     assert {:ok, messages} =
@@ -196,7 +202,10 @@ defmodule Phod.Session.LoopPeerTest do
     Req.Test.expect(Phod.Session.LlmStub, fn conn -> respond_with(conn, [%{"type" => "text", "text" => "ok"}], "end_turn") end)
 
     {on_event, events} = collect_events()
-    peer = fn {:root, "a/b"} -> {:ok, peer_root} end
+    peer = fn
+      {:root, "a/b"} -> {:ok, peer_root}
+      {:describe, _} -> {:ok, nil}
+    end
 
     assert {:ok, _} = Loop.run([user_message("read")], root, on_event, mode: :user, peers: ["a/b"], peer: peer)
 

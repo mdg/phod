@@ -50,8 +50,8 @@ defmodule Phod.Session.Loop do
 
     * `:mode` — `:user` (default) or `:peer`
     * `:peers` — the session ids this session may send to
-    * `:peer_info` — `[{id, description | nil}]` for those peers, shown to the
-      model in the `peer` choices (default: the ids, with no descriptions)
+    * `:peer` — also answers `{:describe, peer}` with `{:ok, description | nil}`,
+      which a user run shows to the model in its `peer` choices
     * `:peer` — `fn request -> result end` for peer work: `{:send, peer, prompt,
       want_reply}` → `{:ok, %{peer:, status:}}`; `{:reply, text}` → `{:ok, %{to:,
       status:}}`; `{:root, peer}` → `{:ok, root}`
@@ -72,8 +72,15 @@ defmodule Phod.Session.Loop do
   def run(messages, root, on_event, opts) do
     mode = Keyword.get(opts, :mode, :user)
     peers = Keyword.get(opts, :peers, [])
-    peer_info = Keyword.get(opts, :peer_info, Enum.map(peers, &{&1, nil}))
     user? = mode == :user
+    peer_call = Keyword.get(opts, :peer, &no_peers/1)
+
+    # A user run shows each peer's description to the model; the others don't
+    # offer peers, so they don't need it.
+    peer_info =
+      if user? and peers != [],
+        do: Enum.map(peers, &{&1, describe_peer(peer_call, &1)}),
+        else: Enum.map(peers, &{&1, nil})
 
     tools =
       Tool.loop_tools(
@@ -111,6 +118,15 @@ defmodule Phod.Session.Loop do
   end
 
   defp no_peers(_request), do: {:error, "this session has no peer connections"}
+
+  # A peer's description, or nil if it can't be had. Called from the run's task,
+  # so it doesn't block the session that is running.
+  defp describe_peer(peer_call, peer) do
+    case peer_call.({:describe, peer}) do
+      {:ok, description} -> description
+      {:error, _reason} -> nil
+    end
+  end
 
   # A missing file means no instructions.
   defp read_instructions(root) do

@@ -165,12 +165,13 @@ defmodule Phod.Session.PeerExchangeTest do
       long = String.duplicate("x", 1_000)
       s = fresh_session("  " <> long <> "  ")
 
-      assert String.length(Phod.Session.Connections.description(s.id)) == 500
+      assert {:ok, description} = Session.describe(s.id)
+      assert String.length(description) == 500
     end
 
     test "a session with no DESCRIPTION.md has no description" do
       s = fresh_session()
-      assert Phod.Session.Connections.description(s.id) == nil
+      assert {:ok, nil} = Session.describe(s.id)
     end
 
     test "a peer's description appears in the peer choices the model sees" do

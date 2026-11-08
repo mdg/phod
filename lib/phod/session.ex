@@ -39,6 +39,8 @@ defmodule Phod.Session do
     :worktree_root,
     :idle_timeout,
     :log_path,
+    # what this session is for, from DESCRIPTION.md; shown to its peers
+    :description,
     messages: [],
     # display name of each user-sent message, keyed by its index in `messages`
     senders: %{},
@@ -227,6 +229,17 @@ defmodule Phod.Session do
   end
 
   @doc """
+  A session's description (from its `DESCRIPTION.md`), or `nil` if it has none.
+  """
+  @spec describe(String.t()) :: {:ok, String.t() | nil} | {:error, term()}
+  def describe(id) do
+    case whereis(id) do
+      {:ok, pid} -> GenServer.call(pid, :describe)
+      :error -> {:error, {:not_found, id}}
+    end
+  end
+
+  @doc """
   The session's worktrees as `[{name, root}]`. A session has one worktree, so
   this is always a single entry.
   """
@@ -280,11 +293,11 @@ defmodule Phod.Session do
   def init({id, worktree_root, opts}) do
     if File.dir?(worktree_root) do
       idle_timeout = Keyword.get(opts, :idle_timeout, @idle_timeout)
-      Connections.set_description(id, read_description(worktree_root))
 
       state = %__MODULE__{
         id: id,
         worktree_root: worktree_root,
+        description: read_description(worktree_root),
         idle_timeout: idle_timeout,
         log_path: Log.path(worktree_root),
       }
@@ -356,6 +369,10 @@ defmodule Phod.Session do
 
   def handle_call({:unexpect_reply, peer}, _from, state) do
     {:reply, :ok, %{state | awaiting: MapSet.delete(state.awaiting, peer)}, state.idle_timeout}
+  end
+
+  def handle_call(:describe, _from, state) do
+    {:reply, {:ok, state.description}, state, state.idle_timeout}
   end
 
   def handle_call(:worktrees, _from, state) do
@@ -478,12 +495,9 @@ defmodule Phod.Session do
     parent = self()
     worktree_root = state.worktree_root
 
-    peers = Connections.peers(state.id)
-
     opts = [
       mode: item.mode,
-      peers: peers,
-      peer_info: Enum.map(peers, &{&1, Connections.description(&1)}),
+      peers: Connections.peers(state.id),
       peer: peer_call(self(), state.id, item.from)
     ]
 
@@ -533,6 +547,9 @@ defmodule Phod.Session do
           {:ok, [{_name, root}]} -> {:ok, root}
           {:error, _reason} = error -> error
         end
+
+      {:describe, peer} ->
+        describe(peer)
     end
   end
 

@@ -23,9 +23,9 @@ defmodule Phod.Tool.Http do
     ]
   end
 
-  @doc "What the model is told about this connection."
-  def describe(%{host: host, port: port, label: label, read_only: read_only}) do
-    base = "Make an HTTP request to #{host}:#{port} (connection http_#{label}). " <>
+  @doc "What the model is told about this connection. The headers stay out of it: they may hold credentials."
+  def describe(%{base_url: base_url, label: label, read_only: read_only}) do
+    base = "Make an HTTP request to #{base_url} (connection http_#{label}). " <>
       "Paths are relative to that server."
 
     if read_only do
@@ -55,12 +55,13 @@ defmodule Phod.Tool.Http do
   end
 
   defp request(args, method, connection) do
-    url = "http://#{connection.host}:#{connection.port}#{args.path}" <> query(args)
+    url = String.trim_trailing(connection.base_url, "/") <> args.path <> query(args)
 
     options =
       [method: @methods[method], url: url, redirect: false, retry: false,
        receive_timeout: @timeout_ms]
       |> maybe_put(:body, args[:body])
+      |> Keyword.put(:headers, header_pairs(connection.headers))
       |> Keyword.merge(req_options())
 
     case Req.request(options) do
@@ -69,6 +70,14 @@ defmodule Phod.Tool.Http do
 
       {:error, exception} ->
         {:error, "request failed: #{Exception.message(exception)}"}
+    end
+  end
+
+  # "Name: value" strings, as Req takes them: {name, value} pairs.
+  defp header_pairs(headers) do
+    for header <- headers do
+      [name, value] = String.split(header, ":", parts: 2)
+      {String.trim(name), String.trim(value)}
     end
   end
 

@@ -17,7 +17,7 @@ defmodule Phod.Session.NetworkSessionTest do
     {:ok, _pid} =
       Session.ensure_started("tester", tree,
         network: %{
-          http: %{"docs" => %{host: "docs.internal", port: 8080}},
+          http: %{"docs" => %{base_url: "http://docs.internal:8080"}},
           postgres: %{"analytics" => %{host: "db", port: 5432, database: "app", user: "r", password: "hunter2"}}
         }
       )
@@ -32,7 +32,7 @@ defmodule Phod.Session.NetworkSessionTest do
 
     assert {:error, {:invalid_network, {:invalid_label, :http, "Bad Label"}}} =
              Session.ensure_started("tester", tree,
-               network: %{http: %{"Bad Label" => %{host: "h", port: 80}}}
+               network: %{http: %{"Bad Label" => %{base_url: "http://h"}}}
              )
 
     assert Session.whereis(Session.session_id("tester", tree)) == :error

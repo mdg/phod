@@ -3,7 +3,7 @@ defmodule Phod.Session.Network do
   A session's network connections, set when the session starts.
 
       %{
-        http: %{"docs" => %{host: "docs.internal", port: 8080, read_only: true}},
+        http: %{"docs" => %{base_url: "http://docs.internal:8080", headers: ["Accept: text/markdown"], read_only: true}},
         postgres: %{
           "analytics" => %{host: "db.internal", port: 5432, database: "app",
                            user: "reader", password: "...", read_only: true}
@@ -23,8 +23,12 @@ defmodule Phod.Session.Network do
 
   @protocols %{http: Http, postgres: Postgres}
   @required %{
-    http: [:host, :port],
+    http: [:base_url],
     postgres: [:host, :port, :database, :user, :password]
+  }
+  @optional %{
+    http: [:headers, :read_only],
+    postgres: [:read_only]
   }
   @label ~r/\A[a-z][a-z0-9_]*\z/
 
@@ -82,7 +86,7 @@ defmodule Phod.Session.Network do
 
       true ->
         fields = Map.new(fields)
-        allowed = @required[protocol] ++ [:read_only]
+        allowed = @required[protocol] ++ @optional[protocol]
         unknown = Map.keys(fields) -- allowed
         missing = @required[protocol] -- Map.keys(fields)
 
@@ -101,6 +105,7 @@ defmodule Phod.Session.Network do
       end)
 
     read_only = Map.get(fields, :read_only, true)
+    headers = Map.get(fields, :headers, [])
 
     cond do
       bad ->
@@ -109,14 +114,55 @@ defmodule Phod.Session.Network do
       not is_boolean(read_only) ->
         {:error, {:invalid_connection, protocol, label, {:bad_field, :read_only}}}
 
+      not valid_headers?(headers) ->
+        {:error, {:invalid_connection, protocol, label, {:bad_field, :headers}}}
+
       true ->
-        {:ok, fields |> Map.put(:read_only, read_only) |> Map.put(:label, label)}
+        connection =
+          fields
+          |> Map.put(:read_only, read_only)
+          |> Map.put(:headers, headers)
+          |> Map.put(:label, label)
+
+        {:ok, connection}
     end
   end
 
   defp valid_field?(:port, port), do: is_integer(port) and port in 1..65_535
   defp valid_field?(:password, password), do: is_binary(password)
+  defp valid_field?(:base_url, url), do: valid_base_url?(url)
   defp valid_field?(_field, value), do: is_binary(value) and value != ""
+
+  # The scheme and host, with at most a bare "/" as the path. The path and
+  # query belong to each request, not to the connection.
+  defp valid_base_url?(url) when is_binary(url) do
+    case URI.parse(url) do
+      %URI{scheme: scheme, host: host, path: path, query: nil, fragment: nil}
+      when scheme in ["http", "https"] and is_binary(host) and host != "" ->
+        path in [nil, "", "/"]
+
+      _invalid ->
+        false
+    end
+  end
+
+  defp valid_base_url?(_url), do: false
+
+  # A list of "Name: value" strings, each with a name before the first colon.
+  defp valid_headers?(headers) when is_list(headers) do
+    Enum.all?(headers, fn header ->
+      is_binary(header) and valid_header?(header)
+    end)
+  end
+
+  defp valid_headers?(_headers), do: false
+
+  defp valid_header?(header) do
+    case String.split(header, ":", parts: 2) do
+      [name, _value] -> String.trim(name) != ""
+      _no_colon -> false
+    end
+  end
 
   @doc """
   The tools for a normalised config, as `{name, module, connection}`, sorted by

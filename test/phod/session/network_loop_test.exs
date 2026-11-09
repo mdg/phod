@@ -6,7 +6,7 @@ defmodule Phod.Session.NetworkLoopTest do
   setup {Phod.Tool.TestHelpers, :setup_worktree}
 
   @network_config %{
-    http: %{"docs" => %{host: "docs.internal", port: 8080}},
+    http: %{"docs" => %{base_url: "http://docs.internal:8080"}},
     postgres: %{
       "analytics" => %{
         host: "localhost",

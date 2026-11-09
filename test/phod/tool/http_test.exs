@@ -4,7 +4,7 @@ defmodule Phod.Tool.HttpTest do
   alias Phod.Tool.Http
 
   defp conn(read_only \\ true) do
-    %{host: "docs.internal", port: 8080, label: "docs", read_only: read_only}
+    %{base_url: "http://docs.internal:8080", headers: [], label: "docs", read_only: read_only}
   end
 
   defp call(input, connection \\ conn()) do
@@ -25,6 +25,35 @@ defmodule Phod.Tool.HttpTest do
 
     assert {:ok, %{status: 200, body: "hello from docs"}} =
              call(%{path: "/guide", query: "lang=en"})
+  end
+
+  test "configured headers are sent with every request" do
+    connection = %{conn() | headers: ["Authorization: Bearer abc123", "Accept: text/plain"]}
+
+    Req.Test.stub(Phod.Tool.HttpStub, fn conn ->
+      assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer abc123"]
+      assert Plug.Conn.get_req_header(conn, "accept") == ["text/plain"]
+      Req.Test.text(conn, "ok")
+    end)
+
+    assert {:ok, %{status: 200}} = call(%{path: "/secure"}, connection)
+  end
+
+  test "the base URL's path is kept, and the request path is added to it" do
+    connection = %{conn() | base_url: "http://docs.internal:8080/api/"}
+
+    Req.Test.stub(Phod.Tool.HttpStub, fn conn ->
+      assert conn.request_path == "/api/v1/items"
+      Req.Test.text(conn, "ok")
+    end)
+
+    assert {:ok, _} = call(%{path: "/v1/items"}, connection)
+  end
+
+  test "the connection's headers stay out of its description" do
+    description = Http.describe(%{conn() | headers: ["Authorization: Bearer abc123"]})
+    refute description =~ "abc123"
+    assert description =~ "http://docs.internal:8080"
   end
 
   test "a read-only connection refuses anything but GET, and sends nothing" do

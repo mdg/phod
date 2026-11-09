@@ -165,6 +165,31 @@ defmodule Phod.Session.Network do
   end
 
   @doc """
+  Adds one connection to a normalised config. The connection is checked as a
+  config entry is at start. Returns `{:error, :already_configured}` if the label
+  is taken.
+  """
+  @spec add_connection(map(), atom(), String.t() | atom(), map() | keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def add_connection(network, protocol, label, fields) do
+    label = to_string(label)
+
+    cond do
+      Map.has_key?(Map.get(network, protocol, %{}), label) ->
+        {:error, :already_configured}
+
+      true ->
+        case normalize(%{protocol => %{label => fields}}) do
+          {:ok, one} ->
+            {:ok, Map.update(network, protocol, one[protocol], &Map.merge(&1, one[protocol]))}
+
+          {:error, _reason} = error ->
+            error
+        end
+    end
+  end
+
+  @doc """
   The tools for a normalised config, as `{name, module, connection}`, sorted by
   name.
   """

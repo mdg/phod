@@ -254,6 +254,21 @@ defmodule Phod.Session do
   end
 
   @doc """
+  Adds a network connection to a running session, e.g. `add_network(id,
+  :http, "docs", %{base_url: "http://docs.internal:8080"})`. Runs that start
+  after this have the new tool; a run already in progress keeps the tools it
+  started with. Returns `{:error, :already_configured}` if the label is taken.
+  """
+  @spec add_network(String.t(), atom(), String.t() | atom(), map() | keyword()) ::
+          :ok | {:error, term()}
+  def add_network(id, protocol, label, fields) do
+    case whereis(id) do
+      {:ok, pid} -> GenServer.call(pid, {:add_network, protocol, label, fields})
+      :error -> {:error, :not_found}
+    end
+  end
+
+  @doc """
   Appends `text` as a user message from `sender` (the user's display name,
   used in the session log) and kicks off the agent loop. Returns immediately
   without waiting for the loop to finish.
@@ -381,6 +396,18 @@ defmodule Phod.Session do
 
   def handle_call({:unexpect_reply, peer}, _from, state) do
     {:reply, :ok, %{state | awaiting: MapSet.delete(state.awaiting, peer)}, state.idle_timeout}
+  end
+
+  def handle_call({:add_network, protocol, label, fields}, _from, state) do
+    case Network.add_connection(state.network, protocol, label, fields) do
+      {:ok, network} ->
+        state = %{state | network: network}
+        broadcast(state)
+        {:reply, :ok, state, state.idle_timeout}
+
+      {:error, _reason} = error ->
+        {:reply, error, state, state.idle_timeout}
+    end
   end
 
   def handle_call(:describe, _from, state) do

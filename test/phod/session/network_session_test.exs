@@ -44,4 +44,51 @@ defmodule Phod.Session.NetworkSessionTest do
 
     assert %{network: %{http: [], postgres: []}} = Session.get_snapshot(Session.session_id("tester", tree))
   end
+
+  describe "add_network/4" do
+    test "adds an http connection to a running session" do
+      tree = fresh_tree()
+      {:ok, _pid} = Session.ensure_started("tester", tree)
+      id = Session.session_id("tester", tree)
+
+      assert :ok = Session.add_network(id, :http, "docs", %{base_url: "http://docs.internal:8080"})
+      assert %{network: %{http: ["docs"]}} = Session.get_snapshot(id)
+    end
+
+    test "a label can only be used once" do
+      tree = fresh_tree()
+      {:ok, _pid} = Session.ensure_started("tester", tree)
+      id = Session.session_id("tester", tree)
+
+      :ok = Session.add_network(id, :http, "docs", %{base_url: "http://docs.internal"})
+
+      assert {:error, :already_configured} =
+               Session.add_network(id, :http, "docs", %{base_url: "http://other"})
+    end
+
+    test "a connection is checked before it's added" do
+      tree = fresh_tree()
+      {:ok, _pid} = Session.ensure_started("tester", tree)
+      id = Session.session_id("tester", tree)
+
+      assert {:error, {:invalid_connection, :http, "docs", {:bad_field, :base_url}}} =
+               Session.add_network(id, :http, "docs", %{base_url: "docs.internal"})
+
+      assert %{network: %{http: []}} = Session.get_snapshot(id)
+    end
+
+    test "an unknown protocol is an error" do
+      tree = fresh_tree()
+      {:ok, _pid} = Session.ensure_started("tester", tree)
+      id = Session.session_id("tester", tree)
+
+      assert {:error, {:unknown_protocols, [:ftp]}} =
+               Session.add_network(id, :ftp, "files", %{host: "h"})
+    end
+
+    test "a session that isn't running is an error" do
+      assert {:error, :not_found} =
+               Session.add_network("tester/none", :http, "docs", %{base_url: "http://h"})
+    end
+  end
 end

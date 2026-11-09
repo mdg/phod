@@ -48,7 +48,9 @@ defmodule Phod.Tool do
 
   # Every call must say what it is for. The loop enforces it (see
   # `Phod.Session.Loop`); it's declared here so the model sees it in the schema.
-  defp goal_param do
+  @doc "The `goal` parameter every tool call carries (see `Phod.Session.Loop`)."
+  @spec goal_param() :: Phod.Tool.Input.Param.t()
+  def goal_param do
     Input.string(:goal, "One line: what this call is for.", required: true)
   end
 

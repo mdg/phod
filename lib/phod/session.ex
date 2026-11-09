@@ -32,7 +32,7 @@ defmodule Phod.Session do
 
   import Rexult, only: [rexult: 1, ok_and_then: 2, ok?: 1]
 
-  alias Phod.Session.{Connections, Llm, Log, Loop}
+  alias Phod.Session.{Connections, Llm, Log, Loop, Network}
 
   defstruct [
     :id,
@@ -41,6 +41,8 @@ defmodule Phod.Session do
     :log_path,
     # what this session is for, from DESCRIPTION.md; shown to its peers
     :description,
+    # the network connections the session's tools may use (see Phod.Session.Network)
+    network: Network.empty(),
     messages: [],
     # display name of each user-sent message, keyed by its index in `messages`
     senders: %{},
@@ -291,22 +293,32 @@ defmodule Phod.Session do
 
   @impl true
   def init({id, worktree_root, opts}) do
-    if File.dir?(worktree_root) do
-      idle_timeout = Keyword.get(opts, :idle_timeout, @idle_timeout)
+    with_network(Keyword.get(opts, :network), fn network ->
+      if File.dir?(worktree_root) do
+        idle_timeout = Keyword.get(opts, :idle_timeout, @idle_timeout)
 
-      state = %__MODULE__{
-        id: id,
-        worktree_root: worktree_root,
-        description: read_description(worktree_root),
-        idle_timeout: idle_timeout,
-        log_path: Log.path(worktree_root),
-      }
+        state = %__MODULE__{
+          id: id,
+          worktree_root: worktree_root,
+          description: read_description(worktree_root),
+          network: network,
+          idle_timeout: idle_timeout,
+          log_path: Log.path(worktree_root),
+        }
 
-      reset_log(state)
+        reset_log(state)
 
-      {:ok, state, idle_timeout}
-    else
-      {:stop, {:invalid_worktree_root, worktree_root}}
+        {:ok, state, idle_timeout}
+      else
+        {:stop, {:invalid_worktree_root, worktree_root}}
+      end
+    end)
+  end
+
+  defp with_network(config, start) do
+    case Network.normalize(config) do
+      {:ok, network} -> start.(network)
+      {:error, reason} -> {:stop, {:invalid_network, reason}}
     end
   end
 
@@ -498,7 +510,8 @@ defmodule Phod.Session do
     opts = [
       mode: item.mode,
       peers: Connections.peers(state.id),
-      peer: peer_call(self(), state.id, item.from)
+      peer: peer_call(self(), state.id, item.from),
+      network: state.network
     ]
 
     task =
@@ -586,6 +599,7 @@ defmodule Phod.Session do
       last_error: state.last_error,
       queued: Enum.map(state.queue, & &1.text),
       peers: Connections.peers(state.id),
+      network: Network.labels(state.network),
     }
   end
 

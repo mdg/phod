@@ -24,7 +24,7 @@ defmodule Phod.Session.Loop do
 
   import Rexult
 
-  alias Phod.Session.Llm
+  alias Phod.Session.{Llm, Network}
   alias Phod.Tool
   alias Phod.Tool.{Input, Reply, Send}
 
@@ -82,14 +82,24 @@ defmodule Phod.Session.Loop do
         do: Enum.map(peers, &{&1, describe_peer(peer_call, &1)}),
         else: Enum.map(peers, &{&1, nil})
 
+    # Network connections belong to the session, not to a peer's request, so
+    # only a user run has them.
+    network_tools =
+      if user? do
+        Network.tools(Keyword.get(opts, :network, Network.empty()))
+      else
+        []
+      end
+
     tools =
       Tool.loop_tools(
         send_to: if(user?, do: peer_info, else: []),
         reply: mode == :peer,
         peer_reads: if(user?, do: peer_info, else: [])
-      )
+      ) ++ Network.specs(network_tools)
 
     ctx = %{
+      network: Map.new(network_tools, fn {name, module, connection} -> {name, {module, connection}} end),
       root: root,
       on_event: on_event,
       # read per run, so edits to AGENTS.md apply from the next message on
@@ -271,8 +281,18 @@ defmodule Phod.Session.Loop do
       name == "send" -> run_send(input, ctx)
       name == "reply" -> run_reply(input, ctx)
       Map.has_key?(input, "peer") -> {run_peer_read(name, input, ctx), ctx}
+      Map.has_key?(ctx.network, name) -> {run_network(name, input, ctx), ctx}
       true -> {Tool.run(name, ctx.root, input), ctx}
     end
+  end
+
+  # A call to a configured connection: checked against its parameters, then run
+  # with that connection.
+  defp run_network(name, input, ctx) do
+    {module, connection} = Map.fetch!(ctx.network, name)
+
+    Input.validate_params(input, module.params(), %{})
+    |> ok_and_then(&module.run(&1, %{connection: connection}))
   end
 
   # Every tool call needs a goal: one line saying what the call is for.
@@ -284,32 +304,28 @@ defmodule Phod.Session.Loop do
   end
 
   defp run_send(input, ctx) do
-    case Input.validate_params(input, Send.params(), %{}) do
-      {:ok, args} ->
-        result = Send.run(args, %{peers: ctx.peers, call: ctx.call})
+    validated = Input.validate_params(input, Send.params(), %{})
+    result = ok_and_then(validated, &Send.run(&1, %{peers: ctx.peers, call: ctx.call}))
 
-        # Only a successful send with want_reply is waited for.
-        ctx =
-          if match?({:ok, _}, result) and args.want_reply,
-            do: %{ctx | pending: MapSet.put(ctx.pending, args.peer)},
-            else: ctx
+    # Only a successful send with want_reply is waited for.
+    ctx =
+      case {validated, result} do
+        {{:ok, %{peer: peer, want_reply: true}}, {:ok, _}} ->
+          %{ctx | pending: MapSet.put(ctx.pending, peer)}
 
-        {result, ctx}
+        _not_waited_for ->
+          ctx
+      end
 
-      {:error, _msg} = error ->
-        {error, ctx}
-    end
+    {result, ctx}
   end
 
   defp run_reply(input, ctx) do
-    case Input.validate_params(input, Reply.params(), %{}) do
-      {:ok, args} ->
-        result = Reply.run(args, %{call: ctx.call})
-        {result, %{ctx | replied: match?({:ok, _}, result)}}
+    result =
+      Input.validate_params(input, Reply.params(), %{})
+      |> ok_and_then(&Reply.run(&1, %{call: ctx.call}))
 
-      {:error, _msg} = error ->
-        {error, ctx}
-    end
+    {result, %{ctx | replied: match?({:ok, _}, result)}}
   end
 
   # A read-only tool run against a peer's worktree.
@@ -325,10 +341,10 @@ defmodule Phod.Session.Loop do
   end
 
   defp peer_root_then_run(name, peer, input, ctx) do
-    case ctx.call.({:root, peer}) do
-      {:ok, root} -> Tool.run(name, root, Map.delete(input, "peer"))
-      {:error, _reason} = error -> error
-    end
+    ctx.call.({:root, peer})
+    |> ok_and_then(fn root ->
+      Tool.run(name, root, Map.delete(input, "peer"))
+    end)
   end
 
   defp tool_result_block(id, {:ok, payload}) do

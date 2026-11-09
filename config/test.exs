@@ -32,6 +32,9 @@ config :phod, Phod.Session.Llm,
   api_key: "test-api-key",
   req_options: [plug: {Req.Test, Phod.Session.LlmStub}]
 
+# HTTP connection tools go through Req.Test in tests, not the network
+config :phod, Phod.Tool.Http, req_options: [plug: {Req.Test, Phod.Tool.HttpStub}]
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

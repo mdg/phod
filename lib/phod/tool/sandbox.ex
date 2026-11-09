@@ -20,9 +20,10 @@ defmodule Phod.Tool.Sandbox do
   when the command finishes first.
   """
 
+  alias Phod.Tool.Output
+
   @system_ro ["/usr", "/lib", "/bin", "/lib64"]
   @system_path ["/usr/bin", "/bin"]
-  @max_output_bytes 20_000
 
   @doc """
   Runs `argv` (a program path and its arguments) and returns its output:
@@ -140,24 +141,6 @@ defmodule Phod.Tool.Sandbox do
   end
 
   defp output(%Rambo{out: out, err: err, status: status}) do
-    %{stdout: truncate(out), stderr: truncate(err), exit_status: status}
-  end
-
-  # Byte-caps at @max_output_bytes, then trims back to a valid UTF-8 boundary.
-  defp truncate(output) when byte_size(output) <= @max_output_bytes, do: output
-
-  defp truncate(output) do
-    output
-    |> binary_part(0, @max_output_bytes)
-    |> valid_utf8_prefix()
-    |> Kernel.<>("\n... (truncated: output exceeds #{@max_output_bytes} bytes)")
-  end
-
-  defp valid_utf8_prefix(bin) do
-    if String.valid?(bin) do
-      bin
-    else
-      valid_utf8_prefix(binary_part(bin, 0, byte_size(bin) - 1))
-    end
+    %{stdout: Output.truncate(out), stderr: Output.truncate(err), exit_status: status}
   end
 end

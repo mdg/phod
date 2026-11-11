@@ -58,26 +58,56 @@ defmodule Phod.Tool.PatchTest do
       :ok
     end
 
-    test "rejects the *** envelope and changes nothing", %{root: root} do
+    test "applies a diff wrapped in *** envelope lines", %{root: root} do
       diff =
         "*** Begin Patch\n*** Update File: notes.txt\n@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n*** End Patch\n"
 
-      assert {:error, msg} =
+      assert {:ok, %{path: "notes.txt", applied_hunks: 1}} =
                Tool.run("patch", root, %{"path" => "notes.txt", "diff" => diff})
 
-      assert msg =~ "not a unified diff"
-      assert msg =~ "*** End Patch"
-      assert File.read!(Path.join(root, "notes.txt")) == "one\ntwo\nthree\n"
+      assert File.read!(Path.join(root, "notes.txt")) == "one\nTWO\nthree\n"
     end
 
-    test "rejects a bare @@ hunk header and changes nothing", %{root: root} do
+    test "applies a bare @@ hunk header through the programmatic fallback", %{root: root} do
       diff = "--- a/notes.txt\n+++ b/notes.txt\n@@\n one\n-two\n+TWO\n three\n"
+
+      assert {:ok, %{applied_hunks: 1, method: "programmatic"}} =
+               Tool.run("patch", root, %{"path" => "notes.txt", "diff" => diff})
+
+      assert File.read!(Path.join(root, "notes.txt")) == "one\nTWO\nthree\n"
+    end
+
+    test "applies a hunk whose line numbers are wrong", %{root: root} do
+      diff = "--- a/notes.txt\n+++ b/notes.txt\n@@ -40,3 +40,3 @@\n one\n-two\n+TWO\n three\n"
+
+      assert {:ok, %{applied_hunks: 1}} =
+               Tool.run("patch", root, %{"path" => "notes.txt", "diff" => diff})
+
+      assert File.read!(Path.join(root, "notes.txt")) == "one\nTWO\nthree\n"
+    end
+
+    test "a diff that fails partway leaves the file untouched", %{root: root} do
+      write(root, "notes.txt", "one\ntwo\nthree\n")
+
+      diff = """
+      --- a/notes.txt
+      +++ b/notes.txt
+      @@ -1,3 +1,3 @@
+       one
+      -two
+      +TWO
+       three
+      @@ -1,1 +1,1 @@
+      -missing
+      +MISSING
+      """
 
       assert {:error, msg} =
                Tool.run("patch", root, %{"path" => "notes.txt", "diff" => diff})
 
-      assert msg =~ "a hunk header must give line numbers"
+      assert msg =~ "could not apply the diff"
       assert File.read!(Path.join(root, "notes.txt")) == "one\ntwo\nthree\n"
+      refute File.exists?(Path.join(root, "notes.txt.rej"))
     end
 
     test "the example in the description applies", %{root: root} do

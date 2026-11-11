@@ -1,10 +1,9 @@
 defmodule Phod.Tool.Patch do
   @moduledoc """
-  Applies a diff to one file. The diff is first piped to the `patch` CLI on
-  stdin. If `patch` rejects it, the `***` envelope lines at the start and end
-  are trimmed and it is tried again. If that also fails, the hunks are applied
-  in Elixir by matching their text, which ignores line numbers (see
-  `Phod.Tool.Patch.Hunks`).
+  Applies a diff to one file. The `***` envelope lines at the start and end
+  are trimmed, and the rest is piped to the `patch` CLI on stdin. If `patch`
+  rejects it, the hunks are applied in Elixir by matching their text, which
+  ignores line numbers (see `Phod.Tool.Patch.Hunks`).
 
   Each `patch` attempt runs with `--dry-run` first, so a diff that fails
   partway through leaves the file untouched. The path is validated through
@@ -60,15 +59,12 @@ defmodule Phod.Tool.Patch do
     created? = not File.exists?(full_path)
     trimmed = trim_envelope(diff)
 
-    # The attempts run in order until one applies: the diff as given, the
-    # trimmed diff (skipped when trimming changed nothing), then the
-    # programmatic hunk matcher.
-    patch_attempts =
-      [{"patch", diff <> "\n"}, {"patch after trimming *** lines", trimmed}]
-      |> Enum.uniq_by(fn {_method, text} -> text end)
-      |> Enum.map(fn {method, text} -> fn -> patch_cli(full_path, method, text) end end)
-
-    (patch_attempts ++ [fn -> programmatic(full_path, trimmed) end])
+    # The attempts run in order until one applies: the diff with its `***`
+    # envelope lines trimmed, then the programmatic hunk matcher.
+    [
+      fn -> patch_cli(full_path, "patch", trimmed) end,
+      fn -> programmatic(full_path, trimmed) end
+    ]
     |> first_success()
     |> map_err(fn errors -> "could not apply the diff:\n" <> Enum.join(errors, "\n") end)
     |> ok_and_then(fn result -> {:ok, Map.merge(%{path: path, created?: created?}, result)} end)

@@ -214,6 +214,41 @@ defmodule Phod.Session.Network do
     end
   end
 
+  @doc """
+  One summary per connection, sorted by tool name, for listing. Never includes
+  a password or a header value, only the names of the headers.
+  """
+  @spec summaries(map()) :: [map()]
+  def summaries(network) do
+    for {name, _module, connection} <- tools(network) do
+      summary(name, connection)
+    end
+  end
+
+  defp summary(name, %{base_url: base_url} = connection) do
+    %{
+      tool: name,
+      protocol: :http,
+      label: connection.label,
+      read_only: connection.read_only,
+      base_url: base_url,
+      header_names: Enum.map(connection.headers, &(&1 |> String.split(":", parts: 2) |> hd()))
+    }
+  end
+
+  defp summary(name, connection) do
+    %{
+      tool: name,
+      protocol: :postgres,
+      label: connection.label,
+      read_only: connection.read_only,
+      host: connection.host,
+      port: connection.port,
+      database: connection.database,
+      user: connection.user
+    }
+  end
+
   @doc "The connection labels per protocol, for a snapshot. No credentials."
   @spec labels(map()) :: %{http: [String.t()], postgres: [String.t()]}
   def labels(network) do

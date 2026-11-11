@@ -91,4 +91,38 @@ defmodule Phod.Session.NetworkSessionTest do
                Session.add_network("tester/none", :http, "docs", %{base_url: "http://h"})
     end
   end
+
+  describe "list_network/1" do
+    test "lists each connection with its tool name, without passwords or header values" do
+      tree = fresh_tree()
+
+      {:ok, _pid} =
+        Session.ensure_started("tester", tree,
+          network: %{
+            http: %{"docs" => %{base_url: "http://docs.internal:8080", headers: ["Authorization: Bearer s3cret"]}},
+            postgres: %{"analytics" => %{host: "db", port: 5432, database: "app", user: "r", password: "hunter2"}}
+          }
+        )
+
+      id = Session.session_id("tester", tree)
+      assert {:ok, [http, postgres]} = Session.list_network(id)
+
+      assert %{tool: "http_docs", protocol: :http, base_url: "http://docs.internal:8080", header_names: ["Authorization"], read_only: true} = http
+      assert %{tool: "postgres_analytics", protocol: :postgres, host: "db", database: "app", user: "r"} = postgres
+
+      refute inspect({:ok, [http, postgres]}) =~ "hunter2"
+      refute inspect({:ok, [http, postgres]}) =~ "s3cret"
+    end
+
+    test "a session with no connections lists none" do
+      tree = fresh_tree()
+      {:ok, _pid} = Session.ensure_started("tester", tree)
+
+      assert {:ok, []} = Session.list_network(Session.session_id("tester", tree))
+    end
+
+    test "a session that isn't running is an error" do
+      assert {:error, :not_found} = Session.list_network("tester/none")
+    end
+  end
 end

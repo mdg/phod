@@ -269,6 +269,18 @@ defmodule Phod.Session do
   end
 
   @doc """
+  The network connections configured for a session, as summaries that leave out
+  passwords and header values.
+  """
+  @spec list_network(String.t()) :: {:ok, [map()]} | {:error, :not_found}
+  def list_network(id) do
+    case whereis(id) do
+      {:ok, pid} -> GenServer.call(pid, :list_network)
+      :error -> {:error, :not_found}
+    end
+  end
+
+  @doc """
   Appends `text` as a user message from `sender` (the user's display name,
   used in the session log) and kicks off the agent loop. Returns immediately
   without waiting for the loop to finish.
@@ -408,6 +420,10 @@ defmodule Phod.Session do
       {:error, _reason} = error ->
         {:reply, error, state, state.idle_timeout}
     end
+  end
+
+  def handle_call(:list_network, _from, state) do
+    {:reply, {:ok, Network.summaries(state.network)}, state, state.idle_timeout}
   end
 
   def handle_call(:describe, _from, state) do

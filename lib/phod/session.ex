@@ -178,11 +178,9 @@ defmodule Phod.Session do
       whereis(b) == :error -> {:error, {:not_found, b}}
       Connections.link?(a, b) -> {:error, :already_connected}
       true ->
-        Connections.add_link(a, b)
-        if mode == :mutual, do: Connections.add_link(b, a)
-        notify(a)
-        notify(b)
-        :ok
+        pairs = if mode == :mutual, do: [{a, b}, {b, a}], else: [{a, b}]
+
+        with_saved(Connections.add_links(pairs), [a, b])
     end
   end
 
@@ -192,15 +190,20 @@ defmodule Phod.Session do
   @spec disconnect(String.t(), String.t()) :: :ok | {:error, :not_connected}
   def disconnect(a, b) do
     if Connections.link?(a, b) or Connections.link?(b, a) do
-      Connections.remove_link(a, b)
-      Connections.remove_link(b, a)
-      notify(a)
-      notify(b)
-      :ok
+      with_saved(Connections.remove_links([{a, b}, {b, a}]), [a, b])
     else
       {:error, :not_connected}
     end
   end
+
+  # Both sessions are told about a change that was saved; a failed save is
+  # returned as it is.
+  defp with_saved(:ok, ids) do
+    Enum.each(ids, &notify/1)
+    :ok
+  end
+
+  defp with_saved({:error, _reason} = error, _ids), do: error
 
   @doc """
   The sessions `id` may send messages to.

@@ -1,47 +1,59 @@
 defmodule Phod.Session.NetworkSessionTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias Phod.Session
 
+  # A fresh worktree; its config file is removed afterwards.
   defp fresh_tree do
     tree = "net-#{System.unique_integer([:positive])}"
     root = Session.worktree_root("tester", tree)
     File.mkdir_p!(root)
+
     on_exit(fn ->
       File.rm_rf!(root)
       File.rm(root <> ".json")
     end)
+
     tree
   end
 
-  test "a session starts with its network config, and the snapshot shows labels only" do
+  # Writes a session's config file, as the session will read it at start.
+  defp write_config(tree, config) do
+    File.write!(Session.worktree_root("tester", tree) <> ".json", Jason.encode!(config))
+  end
+
+  test "a session starts with the connections in its config file, and the snapshot shows labels only" do
     tree = fresh_tree()
 
-    {:ok, _pid} =
-      Session.ensure_started("tester", tree,
-        network: %{
-          http: %{"docs" => %{base_url: "http://docs.internal:8080"}},
-          postgres: %{"analytics" => %{host: "db", port: 5432, database: "app", user: "r", password: "hunter2"}}
-        }
-      )
+    write_config(tree, %{
+      "http" => %{"docs" => %{"base_url" => "http://docs.internal:8080", "headers" => ["Authorization: Bearer s3cret"]}},
+      "postgres" => %{
+        "analytics" => %{"host" => "db", "port" => 5432, "database" => "app", "user" => "r", "password" => "hunter2"}
+      }
+    })
+
+    {:ok, _pid} = Session.ensure_started("tester", tree)
 
     snapshot = Session.get_snapshot(Session.session_id("tester", tree))
     assert snapshot.network == %{http: ["docs"], postgres: ["analytics"]}
     refute inspect(snapshot) =~ "hunter2"
+    refute inspect(snapshot) =~ "s3cret"
   end
 
-  test "a session with an invalid network config doesn't start" do
+  test "a session with an invalid config file starts with no connections" do
     tree = fresh_tree()
+    write_config(tree, %{"http" => %{"Bad Label" => %{"base_url" => "http://h"}}})
 
-    assert {:error, {:invalid_network, {:invalid_label, :http, "Bad Label"}}} =
-             Session.ensure_started("tester", tree,
-               network: %{http: %{"Bad Label" => %{base_url: "http://h"}}}
-             )
+    capture_log(fn ->
+      assert {:ok, _pid} = Session.ensure_started("tester", tree)
+    end)
 
-    assert Session.whereis(Session.session_id("tester", tree)) == :error
+    assert %{network: %{http: [], postgres: []}} = Session.get_snapshot(Session.session_id("tester", tree))
   end
 
-  test "a session with no network config has no network tools" do
+  test "a session with no config file has no network tools" do
     tree = fresh_tree()
     {:ok, _pid} = Session.ensure_started("tester", tree)
 
@@ -99,14 +111,12 @@ defmodule Phod.Session.NetworkSessionTest do
     test "lists each connection with its tool name, without passwords or header values" do
       tree = fresh_tree()
 
-      {:ok, _pid} =
-        Session.ensure_started("tester", tree,
-          network: %{
-            http: %{"docs" => %{base_url: "http://docs.internal:8080", headers: ["Authorization: Bearer s3cret"]}},
-            postgres: %{"analytics" => %{host: "db", port: 5432, database: "app", user: "r", password: "hunter2"}}
-          }
-        )
+      write_config(tree, %{
+        "http" => %{"docs" => %{"base_url" => "http://docs.internal:8080", "headers" => ["Authorization: Bearer s3cret"]}},
+        "postgres" => %{"analytics" => %{"host" => "db", "port" => 5432, "database" => "app", "user" => "r", "password" => "hunter2"}}
+      })
 
+      {:ok, _pid} = Session.ensure_started("tester", tree)
       id = Session.session_id("tester", tree)
       assert {:ok, [http, postgres]} = Session.list_network(id)
 

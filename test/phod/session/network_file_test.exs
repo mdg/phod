@@ -1,6 +1,8 @@
 defmodule Phod.Session.NetworkFileTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias Phod.Session
 
   # A fresh worktree; its config file is removed afterwards. The keys are
@@ -29,10 +31,12 @@ defmodule Phod.Session.NetworkFileTest do
     DynamicSupervisor.terminate_child(Phod.Session.Supervisor, pid)
   end
 
-  test "a config given at start is saved beside the worktree, without the label", ctx do
-    {:ok, _pid} =
-      Session.ensure_started("tester", ctx.tree,
-        network: %{http: %{"docs" => %{base_url: "http://docs.internal:8080", headers: ["Accept: text/plain"]}}}
+  test "a connection added to a session is saved beside the worktree, without the label", ctx do
+    {:ok, _pid} = Session.ensure_started("tester", ctx.tree)
+
+    :ok =
+      Session.add_network(ctx.id, :http, "docs",
+        %{base_url: "http://docs.internal:8080", headers: ["Accept: text/plain"]}
       )
 
     assert %{"http" => %{"docs" => saved}} = ctx.config_file |> File.read!() |> Jason.decode!()
@@ -40,30 +44,21 @@ defmodule Phod.Session.NetworkFileTest do
   end
 
   test "the config file is readable only by its owner", ctx do
-    {:ok, _pid} =
-      Session.ensure_started("tester", ctx.tree,
-        network: %{postgres: %{"db" => %{host: "h", port: 1, database: "d", user: "u", password: "secret"}}}
+    {:ok, _pid} = Session.ensure_started("tester", ctx.tree)
+
+    :ok =
+      Session.add_network(ctx.id, :postgres, "db",
+        %{host: "h", port: 1, database: "d", user: "u", password: "secret"}
       )
 
     assert File.stat!(ctx.config_file).mode |> Bitwise.band(0o777) == 0o600
   end
 
   test "a session loads its saved config when it starts again", ctx do
-    {:ok, _pid} = Session.ensure_started("tester", ctx.tree, network: %{http: %{"docs" => %{base_url: "http://d"}}})
+    {:ok, _pid} = Session.ensure_started("tester", ctx.tree)
+    :ok = Session.add_network(ctx.id, :http, "docs", %{base_url: "http://d"})
     stop_session(ctx.id)
 
-    {:ok, _pid} = Session.ensure_started("tester", ctx.tree)
-    assert %{network: %{http: ["docs"]}} = Session.get_snapshot(ctx.id)
-  end
-
-  test "a connection added to a session is saved", ctx do
-    {:ok, _pid} = Session.ensure_started("tester", ctx.tree)
-    :ok = Session.add_network(ctx.id, :http, "docs", %{base_url: "http://docs.internal"})
-
-    assert %{"http" => %{"docs" => %{"base_url" => "http://docs.internal"}}} =
-             ctx.config_file |> File.read!() |> Jason.decode!()
-
-    stop_session(ctx.id)
     {:ok, _pid} = Session.ensure_started("tester", ctx.tree)
     assert %{network: %{http: ["docs"]}} = Session.get_snapshot(ctx.id)
   end
@@ -75,17 +70,38 @@ defmodule Phod.Session.NetworkFileTest do
     refute File.exists?(ctx.config_file)
   end
 
-  test "a config file that isn't valid JSON stops the session, and says why", ctx do
+  test "a config file that isn't valid JSON is logged, and the session starts with no connections",
+       ctx do
     File.write!(ctx.config_file, "{not json")
 
-    assert {:error, {:invalid_network_file, {:invalid_json, _}}} =
-             Session.ensure_started("tester", ctx.tree)
+    log =
+      capture_log(fn ->
+        assert {:ok, _pid} = Session.ensure_started("tester", ctx.tree)
+      end)
+
+    assert log =~ "invalid"
+    assert %{network: %{http: [], postgres: []}} = Session.get_snapshot(ctx.id)
   end
 
-  test "a config file with an unknown protocol stops the session", ctx do
+  test "a config file with an unknown protocol is logged, and the session starts empty", ctx do
     File.write!(ctx.config_file, ~s({"ftp": {"files": {"host": "h"}}}))
 
-    assert {:error, {:invalid_network, {:unknown_protocols, ["ftp"]}}} =
-             Session.ensure_started("tester", ctx.tree)
+    capture_log(fn ->
+      assert {:ok, _pid} = Session.ensure_started("tester", ctx.tree)
+    end)
+
+    assert %{network: %{http: [], postgres: []}} = Session.get_snapshot(ctx.id)
+  end
+
+  test "a session with a bad config file won't overwrite it when a connection is added", ctx do
+    broken = ~s({"http": {"docs": {"base_url": "not a url"}}})
+    File.write!(ctx.config_file, broken)
+
+    capture_log(fn -> {:ok, _pid} = Session.ensure_started("tester", ctx.tree) end)
+
+    assert {:error, {:invalid_network_file, _}} =
+             Session.add_network(ctx.id, :http, "other", %{base_url: "http://other"})
+
+    assert File.read!(ctx.config_file) == broken
   end
 end

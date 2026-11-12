@@ -43,6 +43,9 @@ defmodule Phod.Session do
     :description,
     # the network connections the session's tools may use (see Phod.Session.Network)
     network: Network.empty(),
+    # why the config file couldn't be loaded, if it couldn't: saving is refused
+    # then, so the file isn't overwritten
+    network_error: nil,
     messages: [],
     # display name of each user-sent message, keyed by its index in `messages`
     senders: %{},
@@ -87,7 +90,8 @@ defmodule Phod.Session do
   The session id is `session_id/2` and the worktree is `worktree_root/2`. The
   worktree must be an existing directory in the `<worktree_base>/<user>/<tree>`
   layout; anything else returns `{:error, {:invalid_worktree_root, root}}`
-  without starting a process.
+  without starting a process. The session's network connections come from its
+  config file (`<root>.json`); see `add_network/4`.
   """
   @spec ensure_started(String.t(), String.t(), keyword()) ::
           {:ok, pid()} | {:error, term()}
@@ -320,60 +324,52 @@ defmodule Phod.Session do
 
   @impl true
   def init({id, worktree_root, opts}) do
-    with_network(network_source(opts, worktree_root), fn network ->
-      if File.dir?(worktree_root) do
-        idle_timeout = Keyword.get(opts, :idle_timeout, @idle_timeout)
+    if File.dir?(worktree_root) do
+      idle_timeout = Keyword.get(opts, :idle_timeout, @idle_timeout)
+      {network, network_error} = load_network(id, worktree_root)
 
         state = %__MODULE__{
           id: id,
           worktree_root: worktree_root,
           description: read_description(worktree_root),
           network: network,
+          network_error: network_error,
           idle_timeout: idle_timeout,
           log_path: Log.path(worktree_root),
         }
 
         reset_log(state)
 
-        # An explicit config given at start becomes the session's saved config.
-        if Keyword.has_key?(opts, :network), do: save_network(state)
-
         {:ok, state, idle_timeout}
-      else
-        {:stop, {:invalid_worktree_root, worktree_root}}
-      end
-    end)
-  end
-
-  # The config given at start, or else the session's saved config file.
-  defp network_source(opts, worktree_root) do
-    case Keyword.fetch(opts, :network) do
-      {:ok, config} -> {:ok, config}
-      :error -> Network.read_file(network_path(worktree_root))
+      {:ok, state, idle_timeout}
+    else
+      {:stop, {:invalid_worktree_root, worktree_root}}
     end
   end
-
-  defp with_network({:ok, config}, start) do
-    case Network.normalize(config) do
-      {:ok, network} -> start.(network)
-      {:error, reason} -> {:stop, {:invalid_network, reason}}
-    end
-  end
-
-  defp with_network({:error, reason}, _start), do: {:stop, {:invalid_network_file, reason}}
 
   # A session's config file sits beside its worktree, as its log does:
-  # `<worktree_base>/<user>/<tree>.json`.
-  defp network_path(worktree_root), do: worktree_root <> ".json"
+  # `<worktree_base>/<user>/<tree>.json`. A missing file means no connections. A
+  # file that can't be used is logged, and the session starts with none.
+  defp load_network(id, worktree_root) do
+    path = network_path(worktree_root)
 
-  # Saving is best-effort at start, like the log: a failure is reported, and the
-  # session carries on with the config it has.
-  defp save_network(state) do
-    case Network.write_file(network_path(state.worktree_root), state.network) do
-      :ok -> :ok
-      {:error, reason} -> Logger.warning("could not save network config for #{state.id}: #{inspect(reason)}")
+    outcome = path |> Network.read_file() |> ok_and_then(&Network.normalize/1)
+
+    case outcome do
+      {:ok, network} ->
+        {network, nil}
+
+      {:error, reason} ->
+        Logger.error(
+          "network config #{path} for #{id} is invalid, starting with no connections: " <>
+            inspect(reason)
+        )
+
+        {Network.empty(), reason}
     end
   end
+
+  defp network_path(worktree_root), do: worktree_root <> ".json"
 
   @impl true
   def handle_call(
@@ -434,6 +430,11 @@ defmodule Phod.Session do
 
   def handle_call({:unexpect_reply, peer}, _from, state) do
     {:reply, :ok, %{state | awaiting: MapSet.delete(state.awaiting, peer)}, state.idle_timeout}
+  end
+
+  def handle_call({:add_network, _protocol, _label, _fields}, _from, %{network_error: reason} = state)
+      when not is_nil(reason) do
+    {:reply, {:error, {:invalid_network_file, reason}}, state, state.idle_timeout}
   end
 
   def handle_call({:add_network, protocol, label, fields}, _from, state) do

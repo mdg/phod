@@ -39,6 +39,14 @@ defmodule PhodWeb.SessionLive.ShowTest do
     assert {:ok, _pid} = Phod.Session.whereis(Phod.Session.session_id(owner, tree))
   end
 
+  test "the page title is the session id", %{conn: conn, id: id, user: owner, tree: tree} do
+    Phod.Session.ensure_started(owner, tree)
+    {:ok, view, _html} = live(with_identity(conn), ~p"/sessions/#{owner}/#{tree}")
+
+    assert page_title(view) == "phod - #{id}"
+    refute page_title(view) =~ "Phoenix"
+  end
+
   test "renders a join prompt when the browser has no display name yet", %{
     conn: conn,
     user: owner,

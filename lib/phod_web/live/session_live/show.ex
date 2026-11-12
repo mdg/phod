@@ -26,6 +26,7 @@ defmodule PhodWeb.SessionLive.Show do
   def mount(%{"owner" => owner, "tree" => tree}, session, socket) do
     id = Session.session_id(owner, tree)
     join_path = ~p"/sessions/#{owner}/#{tree}/join"
+    socket = assign(socket, :page_title, "phod - #{id}")
 
     # Starts the session if its worktree is valid; idempotent when it is
     # already running. Only an invalid worktree leaves the view not-found.

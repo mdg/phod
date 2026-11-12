@@ -249,6 +249,87 @@ defmodule Phod.Session.Network do
     }
   end
 
+  @json_protocols %{"http" => :http, "postgres" => :postgres}
+  @json_fields %{
+    "base_url" => :base_url,
+    "headers" => :headers,
+    "read_only" => :read_only,
+    "host" => :host,
+    "port" => :port,
+    "database" => :database,
+    "user" => :user,
+    "password" => :password
+  }
+
+  @doc """
+  Reads a session's config file. A missing file is `{:ok, nil}` (no network).
+  The result is the raw config, not yet checked: pass it to `normalize/1`.
+  """
+  @spec read_file(String.t()) :: {:ok, term()} | {:error, term()}
+  def read_file(path) do
+    case File.read(path) do
+      {:ok, text} -> decode(text)
+      {:error, :enoent} -> {:ok, nil}
+      {:error, reason} -> {:error, {:unreadable, reason}}
+    end
+  end
+
+  defp decode(text) do
+    case Jason.decode(text) do
+      {:ok, map} when is_map(map) -> {:ok, from_json(map)}
+      {:ok, _other} -> {:error, :not_an_object}
+      {:error, error} -> {:error, {:invalid_json, Exception.message(error)}}
+    end
+  end
+
+  # JSON keys are strings. Protocol and field names map to atoms only when they
+  # are known; anything else stays a string, which `normalize/1` rejects.
+  defp from_json(map) do
+    Map.new(map, fn {protocol, entries} ->
+      {Map.get(@json_protocols, protocol, protocol), from_json_entries(entries)}
+    end)
+  end
+
+  defp from_json_entries(entries) when is_map(entries) do
+    Map.new(entries, fn {label, fields} -> {label, from_json_fields(fields)} end)
+  end
+
+  defp from_json_entries(entries), do: entries
+
+  defp from_json_fields(fields) when is_map(fields) do
+    Map.new(fields, fn {key, value} -> {Map.get(@json_fields, key, key), value} end)
+  end
+
+  defp from_json_fields(fields), do: fields
+
+  @doc """
+  Writes a normalised config to `path` as JSON. The file holds passwords, so it
+  is readable only by its owner (0600). The write goes through a temp file, so
+  a failed write doesn't leave a half-written config behind.
+  """
+  @spec write_file(String.t(), map()) :: :ok | {:error, term()}
+  def write_file(path, network) do
+    json = network |> to_json_map() |> Jason.encode!(pretty: true)
+    temp = path <> ".tmp"
+
+    with :ok <- File.write(temp, json),
+         :ok <- File.chmod(temp, 0o600) do
+      File.rename(temp, path)
+    end
+  end
+
+  defp to_json_map(network) do
+    Map.new(network, fn {protocol, connections} ->
+      {Atom.to_string(protocol), Map.new(connections, fn {label, connection} -> {label, connection_json(connection)} end)}
+    end)
+  end
+
+  defp connection_json(connection) do
+    connection
+    |> Map.delete(:label)
+    |> Map.new(fn {key, value} -> {Atom.to_string(key), value} end)
+  end
+
   @doc "The connection labels per protocol, for a snapshot. No credentials."
   @spec labels(map()) :: %{http: [String.t()], postgres: [String.t()]}
   def labels(network) do

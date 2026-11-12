@@ -7,7 +7,10 @@ defmodule Phod.Session.NetworkSessionTest do
     tree = "net-#{System.unique_integer([:positive])}"
     root = Session.worktree_root("tester", tree)
     File.mkdir_p!(root)
-    on_exit(fn -> File.rm_rf!(root) end)
+    on_exit(fn ->
+      File.rm_rf!(root)
+      File.rm(root <> ".json")
+    end)
     tree
   end
 

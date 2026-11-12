@@ -30,7 +30,7 @@ defmodule Phod.Session do
 
   require Logger
 
-  import Rexult, only: [rexult: 1, ok_and_then: 2, ok?: 1]
+  import Rexult, only: [rexult: 1, map_ok: 2, ok_and_then: 2, ok?: 1]
 
   alias Phod.Session.{Connections, Llm, Log, Loop, Network}
 
@@ -320,7 +320,7 @@ defmodule Phod.Session do
 
   @impl true
   def init({id, worktree_root, opts}) do
-    with_network(Keyword.get(opts, :network), fn network ->
+    with_network(network_source(opts, worktree_root), fn network ->
       if File.dir?(worktree_root) do
         idle_timeout = Keyword.get(opts, :idle_timeout, @idle_timeout)
 
@@ -335,6 +335,9 @@ defmodule Phod.Session do
 
         reset_log(state)
 
+        # An explicit config given at start becomes the session's saved config.
+        if Keyword.has_key?(opts, :network), do: save_network(state)
+
         {:ok, state, idle_timeout}
       else
         {:stop, {:invalid_worktree_root, worktree_root}}
@@ -342,10 +345,33 @@ defmodule Phod.Session do
     end)
   end
 
-  defp with_network(config, start) do
+  # The config given at start, or else the session's saved config file.
+  defp network_source(opts, worktree_root) do
+    case Keyword.fetch(opts, :network) do
+      {:ok, config} -> {:ok, config}
+      :error -> Network.read_file(network_path(worktree_root))
+    end
+  end
+
+  defp with_network({:ok, config}, start) do
     case Network.normalize(config) do
       {:ok, network} -> start.(network)
       {:error, reason} -> {:stop, {:invalid_network, reason}}
+    end
+  end
+
+  defp with_network({:error, reason}, _start), do: {:stop, {:invalid_network_file, reason}}
+
+  # A session's config file sits beside its worktree, as its log does:
+  # `<worktree_base>/<user>/<tree>.json`.
+  defp network_path(worktree_root), do: worktree_root <> ".json"
+
+  # Saving is best-effort at start, like the log: a failure is reported, and the
+  # session carries on with the config it has.
+  defp save_network(state) do
+    case Network.write_file(network_path(state.worktree_root), state.network) do
+      :ok -> :ok
+      {:error, reason} -> Logger.warning("could not save network config for #{state.id}: #{inspect(reason)}")
     end
   end
 
@@ -411,14 +437,24 @@ defmodule Phod.Session do
   end
 
   def handle_call({:add_network, protocol, label, fields}, _from, state) do
-    case Network.add_connection(state.network, protocol, label, fields) do
+    # The change is saved before it's applied: if the save fails, nothing changes.
+    saved =
+      state.network
+      |> Network.add_connection(protocol, label, fields)
+      |> ok_and_then(fn network ->
+        Network.write_file(network_path(state.worktree_root), network)
+        |> rexult()
+        |> map_ok(fn _ -> network end)
+      end)
+
+    case saved do
       {:ok, network} ->
         state = %{state | network: network}
         broadcast(state)
         {:reply, :ok, state, state.idle_timeout}
 
-      {:error, _reason} = error ->
-        {:reply, error, state, state.idle_timeout}
+      {:error, reason} ->
+        {:reply, {:error, reason}, state, state.idle_timeout}
     end
   end
 

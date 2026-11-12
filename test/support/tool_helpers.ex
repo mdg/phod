@@ -22,6 +22,7 @@ defmodule Phod.Tool.TestHelpers do
       File.rm_rf!(root)
       # sessions started on this worktree also write a session log beside it
       File.rm(root <> ".md")
+      File.rm(root <> ".json")
     end)
 
     %{root: root, user: user, tree: tree, id: Phod.Session.session_id(user, tree)}

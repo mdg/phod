@@ -140,6 +140,26 @@ defmodule Phod.Tool.Input do
   end
 
   @doc """
+  An integer parameter, within `:min` and `:max` if given
+
+  opts:
+  required bool
+  default integer
+  min integer
+  max integer
+  """
+  def integer(name, desc, opts \\ []) do
+    %Param{
+      type: __MODULE__.Integer,
+      name: name,
+      desc: desc,
+      required?: Keyword.get(opts, :required, false),
+      default: Keyword.get(opts, :default),
+      opts: Keyword.take(opts, [:min, :max]),
+    }
+  end
+
+  @doc """
   A boolean parameter
 
   opts:

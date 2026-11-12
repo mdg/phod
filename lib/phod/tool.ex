@@ -11,6 +11,7 @@ defmodule Phod.Tool do
   @tools %{
     __MODULE__.Exec => true,
     __MODULE__.Grep => true,
+    __MODULE__.ListDirectories => true,
     __MODULE__.ListFiles => true,
     __MODULE__.Patch => true,
     __MODULE__.ReadFiles => true,
